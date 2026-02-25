@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WiseFlow
 
-## Getting Started
+**WiseFlow** adalah aplikasi manajemen tugas dan produktivitas yang dibangun dengan Next.js. Dirancang untuk membantu tim tetap terorganisir, aktif, dan fokus.
 
-First, run the development server:
+## Fitur
+
+- 📋 **Kanban View** — Kelola tugas dengan drag & drop antar kolom (To Do, On Progress, Done, Cancel)
+- 📊 **List View** — Tampilan tabel lengkap dengan informasi prioritas, kategori, status, dan progress
+- 🗂️ **Workspace & Folder** — Organisasi dokumen dan tugas dalam workspace yang terstruktur
+- 🌗 **Dark Mode** — Mendukung tema terang dan gelap
+- ⚡ **Animasi Halus** — UI interaktif dengan animated tabs dan transisi yang elegan
+
+## Tech Stack
+
+- **Framework**: [Next.js 15](https://nextjs.org) (App Router)
+- **Styling**: Tailwind CSS v4
+- **UI Components**: shadcn/ui
+- **Drag & Drop**: @dnd-kit
+- **Animasi**: Motion (Framer Motion)
+- **Database**: Supabase
+- **Icons**: Lucide React
+
+## Memulai
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Jalankan development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000) di browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Struktur Folder
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+app/
+├── dashboard/
+│   ├── task/         # Halaman task (Kanban & List view)
+│   └── layout.tsx
+components/
+├── dash/             # KanbanView, ListView
+├── animate-ui/       # Animated components (tabs, dll)
+└── ui/               # shadcn/ui components
+lib/                  # Utilities & dummy data
+hooks/                # Custom React hooks
+```
 
-## Learn More
+## Deploy
 
-To learn more about Next.js, take a look at the following resources:
+Deploy ke [Vercel](https://vercel.com) dengan satu klik:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/krystallix/wiseflow)
