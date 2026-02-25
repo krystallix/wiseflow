@@ -213,6 +213,59 @@ values ('task-attachments', 'task-attachments', false);
 
 ---
 
+## Indexes
+
+All indexes use `where deleted_at is null` (partial index) so they only cover active rows — smaller, faster.
+
+```sql
+-- projects: fetch all user's active projects
+create index idx_projects_user
+  on risenwise.projects (user_id)
+  where deleted_at is null;
+
+-- tasks: fetch tasks by user (dashboard, list view)
+create index idx_tasks_user
+  on risenwise.tasks (user_id)
+  where deleted_at is null;
+
+-- tasks: fetch tasks per project (project task board)
+create index idx_tasks_project
+  on risenwise.tasks (project_id)
+  where deleted_at is null;
+
+-- tasks: filter by status (kanban columns)
+create index idx_tasks_status
+  on risenwise.tasks (user_id, status)
+  where deleted_at is null;
+
+-- tasks: sort / filter by due date
+create index idx_tasks_due_date
+  on risenwise.tasks (user_id, due_date)
+  where deleted_at is null and due_date is not null;
+
+-- task_subtasks: fetch all subtasks of a task
+create index idx_subtasks_task
+  on risenwise.task_subtasks (task_id)
+  where deleted_at is null;
+
+-- task_comments: fetch comments per task
+create index idx_comments_task
+  on risenwise.task_comments (task_id)
+  where deleted_at is null;
+
+-- task_attachments: fetch attachments per task
+create index idx_attachments_task
+  on risenwise.task_attachments (task_id)
+  where deleted_at is null;
+
+-- notifications: fetch unread notifications for a user
+create index idx_notifications_user_unread
+  on risenwise.notifications (user_id, is_read)
+  where deleted_at is null;
+```
+
+---
+
 ## Changelog
 
 | Date       | Change |
@@ -222,3 +275,4 @@ values ('task-attachments', 'task-attachments', false);
 | 2026-02-25 | Added task_subtasks table with ordering and completion status |
 | 2026-02-26 | Renamed schema from `public` to `risenwise` |
 | 2026-02-26 | Added `deleted_at` to all tables for soft delete support |
+| 2026-02-26 | Added partial indexes on all hot query paths |
