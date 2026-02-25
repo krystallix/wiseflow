@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from 'react';
-import { LayoutDashboard, List, Workflow, Plus, FolderKanban, RefreshCw, Upload, CalendarDays, CheckSquare2 } from 'lucide-react';
+import { LayoutDashboard, List, Workflow, Plus, FolderKanban, RefreshCw, Upload, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -86,8 +86,6 @@ export default function TaskPage() {
     const taskCount = (projectId: string) =>
         Object.values(tasksByProject[projectId] ?? {}).flat().length;
 
-    const totalTaskCount = Object.values(columns).flat().length;
-    const doneTaskCount = columns.done.length;
 
     // ── Handlers ──
     const handleCreateProject = () => {
@@ -221,12 +219,6 @@ export default function TaskPage() {
                                 </p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                                {/* Stats */}
-                                <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground bg-card px-3 py-1.5 rounded-lg border border-border/50">
-                                    <CheckSquare2 className="size-3.5 text-primary" />
-                                    <span className="font-semibold">{doneTaskCount}/{totalTaskCount}</span>
-                                    <span>done</span>
-                                </div>
                                 <Button size="icon-lg" variant="outline">
                                     <RefreshCw />
                                 </Button>
@@ -251,7 +243,7 @@ export default function TaskPage() {
                             <Tabs defaultValue="kanban" className="flex-1 flex flex-col w-full min-h-0">
                                 <div className="bg-card rounded-lg rounded-b-none px-3 py-1 shrink-0 z-10">
                                     <div className="w-fit">
-                                        <TabsList className="w-full">
+                                        <TabsList className="flex flex-row items-center gap-0.5">
                                             <TabsTrigger value="kanban" className="flex items-center gap-2">
                                                 <LayoutDashboard />Kanban
                                             </TabsTrigger>
