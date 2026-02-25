@@ -20,7 +20,6 @@ export type Task = {
     tag_id: string;
     status: TaskStatus;
     priority: TaskPriority;
-    progress: number;
     cover_url?: string;
     due_date?: string;
     comments_count: number;
@@ -41,7 +40,6 @@ export const initialData: Record<TaskStatus, Task[]> = {
             tag_id: 'D-149',
             status: 'todo',
             priority: 'High',
-            progress: 0,
             comments_count: 2,
             attachments_count: 1,
             created_at: '2026-02-20T08:00:00Z',
@@ -59,7 +57,6 @@ export const initialData: Record<TaskStatus, Task[]> = {
             tag_id: 'D-148',
             status: 'todo',
             priority: 'Low',
-            progress: 0,
             comments_count: 8,
             attachments_count: 7,
             due_date: '2026-03-01',
@@ -77,7 +74,6 @@ export const initialData: Record<TaskStatus, Task[]> = {
             tag_id: 'D-147',
             status: 'todo',
             priority: 'Medium',
-            progress: 0,
             comments_count: 1,
             attachments_count: 9,
             created_at: '2026-02-22T08:00:00Z',
@@ -93,7 +89,6 @@ export const initialData: Record<TaskStatus, Task[]> = {
             tag_id: 'D-146',
             status: 'in_progress',
             priority: 'High',
-            progress: 30,
             comments_count: 23,
             attachments_count: 18,
             cover_url: "data:image/svg+xml;utf8,<svg width='200' height='100' xmlns='http://www.w3.org/2000/svg'><rect width='200' height='100' fill='%23f1f5f9'/><path d='M10,20 Q40,50 80,10 T150,70' fill='none' stroke='%233b82f6' strokeWidth='1.5' opacity='0.7'/><path d='M20,90 Q70,20 120,60 T190,30' fill='none' stroke='%233b82f6' strokeWidth='1.5' opacity='0.7'/><rect x='10' y='10' width='30' height='20' rx='2' fill='%23bfdbfe'/><rect x='150' y='60' width='40' height='30' rx='2' fill='%23bfdbfe'/><circle cx='80' cy='10' r='3' fill='%2360a5fa'/></svg>",
@@ -114,7 +109,6 @@ export const initialData: Record<TaskStatus, Task[]> = {
             tag_id: 'D-145',
             status: 'in_progress',
             priority: 'Medium',
-            progress: 20,
             comments_count: 71,
             attachments_count: 28,
             created_at: '2026-02-19T08:00:00Z',
@@ -133,7 +127,6 @@ export const initialData: Record<TaskStatus, Task[]> = {
             tag_id: 'D-144',
             status: 'done',
             priority: 'High',
-            progress: 100,
             comments_count: 14,
             attachments_count: 3,
             created_at: '2026-02-15T08:00:00Z',

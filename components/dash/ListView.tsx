@@ -60,6 +60,7 @@ export default function ListView({ columns }: { columns: Record<TaskStatus, Task
                         const category = categoryConfig[task.category] ?? { style: '' };
                         const doneSubtasks = task.subtasks.filter(s => s.is_done).length;
                         const totalSubtasks = task.subtasks.length;
+                        const progressValue = totalSubtasks > 0 ? Math.round((doneSubtasks / totalSubtasks) * 100) : 0;
 
                         return (
                             <TableRow key={task.id} className="border-border/40 hover:bg-muted/30 transition-colors group">
@@ -127,8 +128,8 @@ export default function ListView({ columns }: { columns: Record<TaskStatus, Task
                                 {/* Progress */}
                                 <TableCell>
                                     <div className="flex items-center gap-2">
-                                        <Progress value={task.progress} className="h-1.5 w-[60px] md:w-[75px]" />
-                                        <span className="text-[11px] font-bold text-muted-foreground">{task.progress}%</span>
+                                        <Progress value={progressValue} className="h-1.5 w-[60px] md:w-[75px]" />
+                                        <span className="text-[11px] font-bold text-muted-foreground">{progressValue}%</span>
                                     </div>
                                 </TableCell>
 

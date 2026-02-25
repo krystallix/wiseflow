@@ -23,7 +23,7 @@ import {
     useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, MoreVertical, MessageCircle, Paperclip, CalendarDays, CheckSquare } from 'lucide-react';
+import { Plus, MoreVertical, MessageCircle, Paperclip, CalendarDays } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -243,6 +243,7 @@ const TaskCard = ({ task }: { task: Task }) => {
 
     const doneSubtasks = task.subtasks.filter(s => s.is_done).length;
     const totalSubtasks = task.subtasks.length;
+    const progressValue = totalSubtasks > 0 ? Math.round((doneSubtasks / totalSubtasks) * 100) : 0;
 
     return (
         <Card className="rounded-[1.2rem] p-[14px] border border-border/30 hover:shadow-sm transition-shadow relative">
@@ -275,28 +276,16 @@ const TaskCard = ({ task }: { task: Task }) => {
                 <p className="text-[11px] text-muted-foreground/80 font-medium tracking-tight leading-snug line-clamp-2">{task.description}</p>
             </div>
 
-            {/* Subtasks */}
+            {/* Progress (from subtasks) */}
             {totalSubtasks > 0 && (
                 <div className="mb-3">
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5">
-                        <span className="flex items-center gap-1.5 font-semibold">
-                            <CheckSquare className="size-2.5 text-primary" />
-                            Subtasks
-                        </span>
-                        <span className="font-bold text-foreground/70">{doneSubtasks}/{totalSubtasks}</span>
+                        <span className="font-semibold">Progress</span>
+                        <span className="font-bold text-foreground/70">{doneSubtasks}/{totalSubtasks} done</span>
                     </div>
-                    <Progress value={(doneSubtasks / totalSubtasks) * 100} className="h-[3px]" />
+                    <Progress value={progressValue} className="h-[4px]" />
                 </div>
             )}
-
-            {/* Progress */}
-            <div className="mb-3">
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5">
-                    <span className="font-semibold">Progress</span>
-                    <span className="font-bold text-foreground/70">{task.progress}%</span>
-                </div>
-                <Progress value={task.progress} className="h-[4px]" />
-            </div>
 
             {/* Footer */}
             <div className="flex items-center justify-between pt-1">
