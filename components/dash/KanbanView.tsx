@@ -34,12 +34,10 @@ import { Task, TaskStatus } from '@/lib/dummy-data';
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function KanbanView({
     columns,
-    setColumns,
-    onAddTask,
+    setColumns
 }: {
     columns: Record<TaskStatus, Task[]>;
     setColumns: React.Dispatch<React.SetStateAction<Record<TaskStatus, Task[]>>>;
-    onAddTask?: (status: TaskStatus) => void;
 }) {
     const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -146,7 +144,6 @@ export default function KanbanView({
                         colorClass={col.color}
                         count={columns[col.id].length}
                         items={columns[col.id]}
-                        onAddTask={onAddTask}
                     />
                 ))}
 
@@ -169,9 +166,8 @@ export default function KanbanView({
 }
 
 // ─── Column ────────────────────────────────────────────────────────────────────
-const KanbanColumn = ({ id, title, count, items, colorClass, onAddTask }: {
+const KanbanColumn = ({ id, title, count, items, colorClass }: {
     id: TaskStatus; title: string; count: number; items: Task[]; colorClass: string;
-    onAddTask?: (status: TaskStatus) => void;
 }) => {
     const { setNodeRef } = useDroppable({ id });
 
@@ -201,11 +197,7 @@ const KanbanColumn = ({ id, title, count, items, colorClass, onAddTask }: {
                         <SortableTask key={item.id} task={item} />
                     ))}
                 </SortableContext>
-                <Button
-                    variant="outline"
-                    className="w-full py-5 rounded-xl border-dashed border-border/60 text-muted-foreground flex items-center justify-center gap-1 mt-0.5 hover:bg-muted/50 transition-colors text-[12px] font-semibold bg-transparent"
-                    onClick={() => onAddTask?.(id)}
-                >
+                <Button variant="outline" className="w-full py-5 rounded-xl border-dashed border-border/60 text-muted-foreground flex items-center justify-center gap-1 mt-0.5 hover:bg-muted/50 transition-colors text-[12px] font-semibold bg-transparent">
                     <Plus className="size-[13px]" /> Add new
                 </Button>
             </div>

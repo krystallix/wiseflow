@@ -11,7 +11,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { GalleryVerticalEndIcon, AudioLinesIcon, TerminalIcon, LayoutDashboard, Search, Sparkle, Inbox, Calendar, Settings2, LifeBuoy, File, CheckCircle, MessageCircle } from "lucide-react"
+import { GalleryVerticalEndIcon, AudioLinesIcon, TerminalIcon, LayoutDashboard, Sparkle, Inbox, Calendar, Settings2, LifeBuoy, File, MessageCircle } from "lucide-react"
 
 const data = {
   teams: [
@@ -43,11 +43,6 @@ const data = {
       icon: <MessageCircle />,
     },
     {
-      title: "Task",
-      url: "/dashboard/task",
-      icon: <CheckCircle />,
-    },
-    {
       title: "Ask AI",
       url: "/dashboard/ask-ai",
       icon: <Sparkle />,
@@ -61,17 +56,17 @@ const data = {
   projects: [
     {
       name: "Design Engineering",
-      url: "/dashboard/projects/design-engineering",
+      url: "/dashboard/task/design-engineering",
       icon: <File />,
     },
     {
       name: "Sales & Marketing",
-      url: "/dashboard/projects/sales-marketing",
+      url: "/dashboard/task/sales-marketing",
       icon: <File />,
     },
     {
       name: "Travel",
-      url: "/dashboard/projects/travel",
+      url: "/dashboard/task/travel",
       icon: <File />,
     },
   ],
