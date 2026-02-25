@@ -27,7 +27,8 @@ create table risenwise.projects (
   name        text not null,
   description text,
   created_at  timestamptz default now(),
-  updated_at  timestamptz default now()
+  updated_at  timestamptz default now(),
+  deleted_at  timestamptz default null   -- null = active, non-null = soft deleted
 );
 ```
 
@@ -54,7 +55,8 @@ create table risenwise.tasks (
   cover_url   text,                          -- optional cover image (Supabase Storage URL)
   due_date    date,
   created_at  timestamptz default now(),
-  updated_at  timestamptz default now()
+  updated_at  timestamptz default now(),
+  deleted_at  timestamptz default null
 );
 ```
 
@@ -72,7 +74,8 @@ create table risenwise.task_subtasks (
   is_done     boolean default false,
   sort_order  int default 0,
   created_at  timestamptz default now(),
-  updated_at  timestamptz default now()
+  updated_at  timestamptz default now(),
+  deleted_at  timestamptz default null
 );
 ```
 
@@ -87,7 +90,8 @@ create table risenwise.task_comments (
   user_id     uuid not null references auth.users(id) on delete cascade,
   task_id     uuid not null references risenwise.tasks(id) on delete cascade,
   content     text not null,
-  created_at  timestamptz default now()
+  created_at  timestamptz default now(),
+  deleted_at  timestamptz default null
 );
 ```
 
@@ -104,7 +108,8 @@ create table risenwise.task_attachments (
   file_name   text not null,
   file_url    text not null,   -- Supabase Storage public URL
   file_size   int,             -- bytes
-  created_at  timestamptz default now()
+  created_at  timestamptz default now(),
+  deleted_at  timestamptz default null
 );
 ```
 
@@ -124,7 +129,8 @@ create table risenwise.notifications (
   body        text,
   is_read     boolean default false,
   is_pinned   boolean default false,
-  created_at  timestamptz default now()
+  created_at  timestamptz default now(),
+  deleted_at  timestamptz default null
 );
 ```
 
@@ -145,30 +151,54 @@ alter table risenwise.notifications     enable row level security;
 
 ### Policies
 
+> All policies filter out soft-deleted rows (`deleted_at is null`).
+
 ```sql
 -- Projects
 create policy "Owner only" on risenwise.projects
-  for all using (auth.uid() = user_id);
+  for all using (auth.uid() = user_id and deleted_at is null);
 
 -- Tasks
 create policy "Owner only" on risenwise.tasks
-  for all using (auth.uid() = user_id);
+  for all using (auth.uid() = user_id and deleted_at is null);
 
 -- Subtasks
 create policy "Owner only" on risenwise.task_subtasks
-  for all using (auth.uid() = user_id);
+  for all using (auth.uid() = user_id and deleted_at is null);
 
 -- Task Comments
 create policy "Owner only" on risenwise.task_comments
-  for all using (auth.uid() = user_id);
+  for all using (auth.uid() = user_id and deleted_at is null);
 
 -- Task Attachments
 create policy "Owner only" on risenwise.task_attachments
-  for all using (auth.uid() = user_id);
+  for all using (auth.uid() = user_id and deleted_at is null);
 
 -- Notifications
 create policy "Owner only" on risenwise.notifications
-  for all using (auth.uid() = user_id);
+  for all using (auth.uid() = user_id and deleted_at is null);
+```
+
+---
+
+## Soft Delete Pattern
+
+Instead of `DELETE`, always update `deleted_at`:
+
+```sql
+-- Soft delete a task
+update risenwise.tasks
+set deleted_at = now()
+where id = '<task_id>' and user_id = auth.uid();
+
+-- Restore a soft-deleted task
+update risenwise.tasks
+set deleted_at = null
+where id = '<task_id>' and user_id = auth.uid();
+
+-- Permanently purge all soft-deleted data older than 30 days (run as cron)
+delete from risenwise.tasks
+where deleted_at < now() - interval '30 days';
 ```
 
 ---
@@ -191,3 +221,4 @@ values ('task-attachments', 'task-attachments', false);
 | 2026-02-25 | Simplified to single-user — removed profiles, workspaces, workspace_members, task_assignees |
 | 2026-02-25 | Added task_subtasks table with ordering and completion status |
 | 2026-02-26 | Renamed schema from `public` to `risenwise` |
+| 2026-02-26 | Added `deleted_at` to all tables for soft delete support |
