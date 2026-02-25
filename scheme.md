@@ -6,13 +6,22 @@
 
 ---
 
+## Setup
+
+```sql
+-- Create custom schema (run once)
+create schema if not exists risenwise;
+```
+
+---
+
 ## Tables
 
 ### `projects`
 Personal projects to group tasks under (e.g. "Design Engineering", "Travel").
 
 ```sql
-create table public.projects (
+create table risenwise.projects (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
   name        text not null,
@@ -31,10 +40,10 @@ Core task entity. Belongs to a project (optional).
 create type task_status   as enum ('todo', 'in_progress', 'done', 'cancel');
 create type task_priority as enum ('Low', 'Medium', 'High');
 
-create table public.tasks (
+create table risenwise.tasks (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
-  project_id  uuid references public.projects(id) on delete set null,
+  project_id  uuid references risenwise.projects(id) on delete set null,
   title       text not null,
   description text,
   category    text,                          -- e.g. 'Back-End', 'Front-End', 'UI/UX Design'
@@ -55,10 +64,10 @@ create table public.tasks (
 Sub-tasks under a parent task. Supports ordering and completion status.
 
 ```sql
-create table public.task_subtasks (
+create table risenwise.task_subtasks (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
-  task_id     uuid not null references public.tasks(id) on delete cascade,
+  task_id     uuid not null references risenwise.tasks(id) on delete cascade,
   title       text not null,
   is_done     boolean default false,
   sort_order  int default 0,
@@ -73,10 +82,10 @@ create table public.task_subtasks (
 Personal notes / comments on a task.
 
 ```sql
-create table public.task_comments (
+create table risenwise.task_comments (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
-  task_id     uuid not null references public.tasks(id) on delete cascade,
+  task_id     uuid not null references risenwise.tasks(id) on delete cascade,
   content     text not null,
   created_at  timestamptz default now()
 );
@@ -88,10 +97,10 @@ create table public.task_comments (
 File attachments on a task (stored in Supabase Storage).
 
 ```sql
-create table public.task_attachments (
+create table risenwise.task_attachments (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
-  task_id     uuid not null references public.tasks(id) on delete cascade,
+  task_id     uuid not null references risenwise.tasks(id) on delete cascade,
   file_name   text not null,
   file_url    text not null,   -- Supabase Storage public URL
   file_size   int,             -- bytes
@@ -107,7 +116,7 @@ In-app notifications for the user.
 ```sql
 create type notification_type as enum ('info', 'update', 'mention', 'system');
 
-create table public.notifications (
+create table risenwise.notifications (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
   type        notification_type default 'info',
@@ -126,39 +135,39 @@ create table public.notifications (
 Enable RLS on all tables — users can only access their own data.
 
 ```sql
-alter table public.projects          enable row level security;
-alter table public.tasks             enable row level security;
-alter table public.task_subtasks     enable row level security;
-alter table public.task_comments     enable row level security;
-alter table public.task_attachments  enable row level security;
-alter table public.notifications     enable row level security;
+alter table risenwise.projects          enable row level security;
+alter table risenwise.tasks             enable row level security;
+alter table risenwise.task_subtasks     enable row level security;
+alter table risenwise.task_comments     enable row level security;
+alter table risenwise.task_attachments  enable row level security;
+alter table risenwise.notifications     enable row level security;
 ```
 
 ### Policies
 
 ```sql
 -- Projects
-create policy "Owner only" on public.projects
+create policy "Owner only" on risenwise.projects
   for all using (auth.uid() = user_id);
 
 -- Tasks
-create policy "Owner only" on public.tasks
+create policy "Owner only" on risenwise.tasks
   for all using (auth.uid() = user_id);
 
 -- Subtasks
-create policy "Owner only" on public.task_subtasks
+create policy "Owner only" on risenwise.task_subtasks
   for all using (auth.uid() = user_id);
 
 -- Task Comments
-create policy "Owner only" on public.task_comments
+create policy "Owner only" on risenwise.task_comments
   for all using (auth.uid() = user_id);
 
 -- Task Attachments
-create policy "Owner only" on public.task_attachments
+create policy "Owner only" on risenwise.task_attachments
   for all using (auth.uid() = user_id);
 
 -- Notifications
-create policy "Owner only" on public.notifications
+create policy "Owner only" on risenwise.notifications
   for all using (auth.uid() = user_id);
 ```
 
@@ -181,3 +190,4 @@ values ('task-attachments', 'task-attachments', false);
 | 2026-02-25 | Initial schema: projects, tasks, task_comments, task_attachments, notifications |
 | 2026-02-25 | Simplified to single-user — removed profiles, workspaces, workspace_members, task_assignees |
 | 2026-02-25 | Added task_subtasks table with ordering and completion status |
+| 2026-02-26 | Renamed schema from `public` to `risenwise` |
