@@ -9,15 +9,17 @@ import { Button } from "@/components/ui/button"
 import { NavUser } from "@/components/nav-user"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/animate-ui/components/radix/popover"
 import { PinList, type PinListItem } from "@/components/animate-ui/components/community/pin-list"
+import { useAuth } from "@/components/providers/auth-provider"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
     const lastSegment = pathname.split("/").filter(Boolean).pop() ?? ""
+    const { user } = useAuth()
     const data = {
         user: {
-            name: "shadcn",
-            email: "m@example.com",
-            avatar: "/avatars/shadcn.jpg",
+            name: user?.user_metadata?.full_name ?? user?.email?.split('@')[0] ?? 'User',
+            email: user?.email ?? '',
+            avatar: user?.user_metadata?.avatar_url ?? '',
         },
     }
 

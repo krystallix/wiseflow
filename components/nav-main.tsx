@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import {
   SidebarGroup,
   SidebarMenu,
@@ -18,21 +19,29 @@ export function NavMain({
     isActive?: boolean
   }[]
 }) {
+  const pathname = usePathname()
+
   return (
     <SidebarGroup>
       <SidebarMenu>
-        {items.map((item) => (
+        {items.map((item) => {
+          // exact match for /dashboard, startsWith for deeper routes
+          const isActive =
+            item.url === '/dashboard'
+              ? pathname === '/dashboard'
+              : pathname.startsWith(item.url)
 
-          <SidebarMenuItem key={item.title}>
-            <SidebarMenuButton asChild tooltip={item.title} isActive={item.isActive}>
-              <Link href={item.url}>
-                {item.icon}
-                <span>{item.title}</span>
-              </Link>
-            </SidebarMenuButton>
-
-          </SidebarMenuItem>
-        ))}
+          return (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton asChild tooltip={item.title} isActive={isActive}>
+                <Link href={item.url}>
+                  {item.icon}
+                  <span>{item.title}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )
+        })}
       </SidebarMenu>
     </SidebarGroup>
   )
