@@ -1,6 +1,4 @@
-"use client";
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
     DndContext,
     DragOverlay,
@@ -23,40 +21,72 @@ import {
     useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, MoreVertical, MessageCircle, Paperclip, CalendarDays } from 'lucide-react';
+import { Plus, MoreVertical, MessageCircle, Paperclip, CalendarDays, ArrowUp, ArrowRight, ArrowDown, Hash } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Task, TaskStatus } from '@/lib/dummy-data';
+import { TaskStatus, type TaskPriority } from '@/lib/dummy-data';
+import { type Task, updateTasksOrder } from '@/lib/supabase/tasks';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Derive flat order updates from the columns state and persist to Supabase.
+ * Fire-and-forget — UI already updated optimistically.
+ */
+function persistOrder(columns: Record<TaskStatus, Task[]>) {
+    const updates = (Object.keys(columns) as TaskStatus[]).flatMap((status) =>
+        columns[status].map((task, index) => ({
+            id: task.id,
+            status,
+            position: index,
+        }))
+    )
+    updateTasksOrder(updates).catch((err) =>
+        console.error('Failed to persist task order:', err)
+    )
+}
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function KanbanView({
     columns,
-    setColumns
+    setColumns,
+    onTaskClick,
+    onAddTask
 }: {
     columns: Record<TaskStatus, Task[]>;
     setColumns: React.Dispatch<React.SetStateAction<Record<TaskStatus, Task[]>>>;
+    onTaskClick: (task: Task) => void;
+    onAddTask?: (status: TaskStatus) => void;
 }) {
     const [activeId, setActiveId] = useState<string | null>(null);
+
+    const dragStartSnapshotRef = useRef<Record<TaskStatus, Task[]> | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
-    const findContainer = (id: string | number) => {
-        if (id in columns) return id as TaskStatus;
-        return (Object.keys(columns) as TaskStatus[]).find((key) =>
-            columns[key].find((t) => t.id === id)
+    const findContainer = (
+        id: string | number,
+        cols: Record<TaskStatus, Task[]> = columns
+    ) => {
+        if (id in cols) return id as TaskStatus;
+        return (Object.keys(cols) as TaskStatus[]).find((key) =>
+            cols[key].find((t) => t.id === id)
         );
     };
 
     const handleDragStart = (event: DragStartEvent) => {
         setActiveId(event.active.id as string);
+        // Snapshot columns at drag-start
+        dragStartSnapshotRef.current = columns;
     };
 
+    // handleDragOver — visual preview only, no DB calls
     const handleDragOver = (event: DragOverEvent) => {
         const { active, over } = event;
         if (!over) return;
@@ -72,13 +102,13 @@ export default function KanbanView({
             let newIndex: number;
 
             if (over.id in prev) {
-                newIndex = overItems.length + 1;
+                newIndex = overItems.length;
             } else {
                 const isBelowOverItem =
                     over && active.rect.current.translated &&
                     active.rect.current.translated.top > over.rect.top + over.rect.height;
                 const modifier = isBelowOverItem ? 1 : 0;
-                newIndex = overIndex >= 0 ? overIndex + modifier : overItems.length + 1;
+                newIndex = overIndex >= 0 ? overIndex + modifier : overItems.length;
             }
 
             return {
@@ -93,27 +123,62 @@ export default function KanbanView({
         });
     };
 
+    // handleDragEnd — source of truth: compute final state, update UI + DB
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
-        const activeContainer = findContainer(active.id);
-        const overContainer = findContainer(over?.id as string);
-        if (!activeContainer || !overContainer || activeContainer !== overContainer) {
-            setActiveId(null);
-            return;
-        }
-        const activeIndex = columns[activeContainer].findIndex((t) => t.id === active.id);
-        const overIndex = columns[overContainer].findIndex((t) => t.id === over?.id);
-        if (activeIndex !== overIndex) {
-            setColumns((prev) => ({
-                ...prev,
-                [overContainer]: arrayMove(prev[overContainer], activeIndex, overIndex),
-            }));
-        }
+        const snapshot = dragStartSnapshotRef.current;
+        dragStartSnapshotRef.current = null;
         setActiveId(null);
+
+        if (!over || !snapshot) return;
+
+        const activeTaskId = active.id as string;
+        const overId = over.id as string;
+        const fromContainer = findContainer(activeTaskId, snapshot);
+        if (!fromContainer) return;
+
+        // Use functional updater so `prev` is guaranteed to be the latest React state
+        setColumns((prev) => {
+            const toContainer =
+                findContainer(activeTaskId, prev) ??
+                findContainer(overId, prev);
+            if (!toContainer) return prev;
+
+            let next: Record<TaskStatus, Task[]>;
+
+            if (fromContainer === toContainer) {
+                // ── Same-column reorder ──────────────────────────────────────
+                const activeIndex = prev[toContainer].findIndex((t) => t.id === activeTaskId);
+                const overIndex = prev[toContainer].findIndex((t) => t.id === overId);
+                if (activeIndex === overIndex || activeIndex < 0 || overIndex < 0) return prev;
+
+                next = {
+                    ...prev,
+                    [toContainer]: arrayMove(prev[toContainer], activeIndex, overIndex),
+                };
+            } else {
+                // ── Cross-column move ────────────────────────────────────────
+                // handleDragOver already moved the task visually; prev already
+                // has the task in toContainer with status=toContainer.
+                // Just ensure the task object's status field is correct.
+                next = {
+                    ...prev,
+                    [toContainer]: prev[toContainer].map((t) =>
+                        t.id === activeTaskId ? { ...t, status: toContainer } : t
+                    ),
+                };
+            }
+
+            // Persist fire-and-forget — runs after React applies the state
+            persistOrder(next);
+            return next;
+        });
     };
+
 
     let activeTask: Task | null = null;
     if (activeId) {
+
         for (const key in columns) {
             const task = columns[key as TaskStatus].find((t) => t.id === activeId);
             if (task) { activeTask = task; break; }
@@ -144,6 +209,8 @@ export default function KanbanView({
                         colorClass={col.color}
                         count={columns[col.id].length}
                         items={columns[col.id]}
+                        onTaskClick={onTaskClick}
+                        onAddTask={onAddTask}
                     />
                 ))}
 
@@ -166,8 +233,10 @@ export default function KanbanView({
 }
 
 // ─── Column ────────────────────────────────────────────────────────────────────
-const KanbanColumn = ({ id, title, count, items, colorClass }: {
+const KanbanColumn = ({ id, title, count, items, colorClass, onTaskClick, onAddTask }: {
     id: TaskStatus; title: string; count: number; items: Task[]; colorClass: string;
+    onTaskClick: (task: Task) => void;
+    onAddTask?: (status: TaskStatus) => void;
 }) => {
     const { setNodeRef } = useDroppable({ id });
 
@@ -182,11 +251,8 @@ const KanbanColumn = ({ id, title, count, items, colorClass }: {
                     </div>
                 </div>
                 <div className="flex items-center gap-0.5">
-                    <Button variant="ghost" size="icon" className="h-[26px] w-[26px] hover:bg-muted text-foreground cursor-pointer">
+                    <Button variant="ghost" size="icon" className="h-[26px] w-[26px] hover:bg-muted text-foreground cursor-pointer" onClick={() => onAddTask?.(id)}>
                         <Plus className="size-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-[26px] w-[26px] hover:bg-muted text-muted-foreground cursor-pointer">
-                        <MoreVertical className="size-4" />
                     </Button>
                 </div>
             </div>
@@ -194,10 +260,10 @@ const KanbanColumn = ({ id, title, count, items, colorClass }: {
             <div ref={setNodeRef} className="flex-1 flex flex-col gap-3 overflow-y-auto no-scrollbar pb-10 px-1 pt-1">
                 <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                     {items.map((item) => (
-                        <SortableTask key={item.id} task={item} />
+                        <SortableTask key={item.id} task={item} onTaskClick={onTaskClick} />
                     ))}
                 </SortableContext>
-                <Button variant="outline" className="w-full py-5 rounded-xl border-dashed border-border/60 text-muted-foreground flex items-center justify-center gap-1 mt-0.5 hover:bg-muted/50 transition-colors text-[12px] font-semibold bg-transparent">
+                <Button onClick={() => onAddTask?.(id)} variant="outline" className="w-full py-5 rounded-xl border-dashed border-border/60 text-muted-foreground flex items-center justify-center gap-1 mt-0.5 hover:bg-muted/50 border-dashed border-2 border-foreground/10 transition-colors text-[12px] font-semibold bg-transparent">
                     <Plus className="size-[13px]" /> Add new
                 </Button>
             </div>
@@ -206,7 +272,7 @@ const KanbanColumn = ({ id, title, count, items, colorClass }: {
 };
 
 // ─── Sortable wrapper ──────────────────────────────────────────────────────────
-const SortableTask = ({ task }: { task: Task }) => {
+const SortableTask = ({ task, onTaskClick }: { task: Task; onTaskClick: (task: Task) => void }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: task.id,
         data: { type: 'Task', task }
@@ -223,13 +289,19 @@ const SortableTask = ({ task }: { task: Task }) => {
                 isDragging ? "opacity-30 mix-blend-multiply dark:mix-blend-screen ring-2 ring-primary ring-offset-2 rounded-2xl" : ""
             )}
         >
-            <TaskCard task={task} />
+            <TaskCard task={task} onClick={() => !isDragging && onTaskClick(task)} />
         </div>
     );
 };
 
+const PRIORITY_ICON: Record<string, React.ElementType> = {
+    High: ArrowUp,
+    Medium: ArrowRight,
+    Low: ArrowDown,
+};
+
 // ─── Task Card ─────────────────────────────────────────────────────────────────
-const TaskCard = ({ task }: { task: Task }) => {
+const TaskCard = ({ task, onClick }: { task: Task; onClick?: () => void }) => {
     const priorityColors: Record<string, string> = {
         High: "bg-red-500/10 text-destructive dark:text-red-400 font-bold",
         Medium: "bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold",
@@ -240,22 +312,33 @@ const TaskCard = ({ task }: { task: Task }) => {
         "Front-End": "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold",
         "UI/UX Design": "bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold",
     };
+    const PriorityIcon = PRIORITY_ICON[task.priority] ?? ArrowRight;
 
-    const doneSubtasks = task.subtasks.filter(s => s.is_done).length;
-    const totalSubtasks = task.subtasks.length;
+    const doneSubtasks = (task.subtasks ?? []).filter(s => s.is_done).length;
+    const totalSubtasks = (task.subtasks ?? []).length;
     const progressValue = totalSubtasks > 0 ? Math.round((doneSubtasks / totalSubtasks) * 100) : 0;
 
     return (
-        <Card className="rounded-[1.2rem] p-[14px] border border-border/30 hover:shadow-sm transition-shadow relative">
+        <Card
+            onClick={onClick}
+            className={cn(
+                "rounded-[1.2rem] p-[14px] border border-border/30 transition-shadow relative",
+                onClick && "cursor-pointer hover:shadow-md hover:border-border/60"
+            )}
+        >
             {/* Header */}
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between">
                 <div className="flex gap-1.5 flex-wrap">
-                    <Badge variant="secondary" className={cn("px-2 py-0 h-4 rounded-[4px] text-[9px] hover:bg-transparent border-transparent pointer-events-none", priorityColors[task.priority])}>
+                    <Badge variant="secondary" className={cn("px-1.5 py-0 h-4 rounded-[4px] text-[9px] hover:bg-transparent border-transparent pointer-events-none flex items-center gap-0.5", priorityColors[task.priority])}>
+                        <PriorityIcon className="size-2.5" />
                         {task.priority}
                     </Badge>
-                    <Badge variant="secondary" className={cn("px-2 py-0 h-4 rounded-[4px] text-[9px] hover:bg-transparent border-transparent pointer-events-none", categoryColors[task.category])}>
-                        {task.category}
-                    </Badge>
+                    {task.category && (
+                        <Badge variant="secondary" className={cn("px-1.5 py-0 h-4 rounded-[4px] text-[9px] hover:bg-transparent border-transparent pointer-events-none flex items-center gap-0.5", task.category ? categoryColors[task.category] : '')}>
+                            <Hash className="size-2.5" />
+                            {task.category}
+                        </Badge>
+                    )}
                 </div>
                 <span className="text-[11px] font-semibold text-muted-foreground">{task.tag_id}</span>
             </div>
@@ -271,7 +354,7 @@ const TaskCard = ({ task }: { task: Task }) => {
             )}
 
             {/* Title & Description */}
-            <div className="mb-3">
+            <div>
                 <h4 className="font-bold text-[13.5px] text-foreground leading-[1.3] mb-1">{task.title}</h4>
                 <p className="text-[11px] text-muted-foreground/80 font-medium tracking-tight leading-snug line-clamp-2">{task.description}</p>
             </div>
@@ -304,10 +387,10 @@ const TaskCard = ({ task }: { task: Task }) => {
                 {/* Comments & attachments */}
                 <div className="flex items-center gap-1.5">
                     <div className="flex items-center gap-1 text-muted-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-[5px] bg-background border border-border/50">
-                        <MessageCircle className="size-[11px]" /> {task.comments_count}
+                        <MessageCircle className="size-[11px]" /> {task.comments_count ?? 0}
                     </div>
                     <div className="flex items-center gap-1 text-muted-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-[5px] bg-background border border-border/50">
-                        <Paperclip className="size-[11px]" /> {task.attachments_count}
+                        <Paperclip className="size-[11px]" /> {task.attachments_count ?? 0}
                     </div>
                 </div>
             </div>

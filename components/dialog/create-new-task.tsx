@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useRef, useId } from 'react'
+import React, { useState, useRef, useId, useEffect } from 'react'
 import {
     Loader2, SaveIcon,
     Circle, Timer, CheckCircle2, Ban,
     ArrowDown, ArrowRight, ArrowUp,
     CalendarIcon, Tag, AlignLeft, Type,
     ListChecks, Plus, X, GripVertical,
-    CircleCheck,
+    CircleCheck, ImageIcon, UploadCloud,
 } from 'lucide-react'
 import {
     Sheet,
@@ -31,6 +31,12 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { type TaskStatus, type TaskPriority } from '@/lib/dummy-data'
+import {
+    createTask,
+    editTaskDetailed,
+    type Task,
+} from '@/lib/supabase/tasks'
+import { uploadCoverForTask } from '@/lib/supabase/task-interactions'
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
@@ -128,8 +134,10 @@ interface CreateNewTaskProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     projectId?: string
+    projectSlug?: string
     defaultStatus?: TaskStatus
     onCreated?: () => void
+    taskToEdit?: Task | null
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
@@ -138,11 +146,14 @@ export default function CreateNewTask({
     open,
     onOpenChange,
     projectId,
+    projectSlug,
     defaultStatus = 'todo',
     onCreated,
+    taskToEdit,
 }: CreateNewTaskProps) {
     const uid = useId()
     const subtaskInputRef = useRef<HTMLInputElement>(null)
+    const coverInputRef = useRef<HTMLInputElement>(null)
 
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
@@ -153,7 +164,33 @@ export default function CreateNewTask({
     const [dueDateOpen, setDueDateOpen] = useState(false)
     const [subtasks, setSubtasks] = useState<SubtaskDraft[]>([])
     const [subtaskInput, setSubtaskInput] = useState('')
+    const [coverFile, setCoverFile] = useState<File | null>(null)
+    const [coverPreview, setCoverPreview] = useState<string | null>(null)
+    const [removeExistingCover, setRemoveExistingCover] = useState(false)
+    const [isDragOver, setIsDragOver] = useState(false)
     const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+        if (open && taskToEdit) {
+            setTitle(taskToEdit.title)
+            setDescription(taskToEdit.description ?? '')
+            setStatus(taskToEdit.status)
+            setPriority(taskToEdit.priority)
+            setCategory(taskToEdit.category ?? '')
+            setDueDate(taskToEdit.due_date ? new Date(taskToEdit.due_date) : undefined)
+            setSubtasks((taskToEdit.subtasks ?? []).map(s => ({
+                id: s.id, // Keep ID for syncing
+                title: s.title,
+                is_done: s.is_done
+            })))
+            setCoverPreview(taskToEdit.cover_url ?? null)
+            setCoverFile(null)
+            setRemoveExistingCover(false)
+            setSubtaskInput('')
+        } else if (open && !taskToEdit) {
+            reset()
+        }
+    }, [open, taskToEdit])
 
     function reset() {
         setTitle('')
@@ -164,6 +201,32 @@ export default function CreateNewTask({
         setDueDate(undefined)
         setSubtasks([])
         setSubtaskInput('')
+        setCoverFile(null)
+        setRemoveExistingCover(false)
+        if (coverPreview && !coverPreview.startsWith('http')) {
+            URL.revokeObjectURL(coverPreview)
+        }
+        setCoverPreview(null)
+    }
+
+    function handleCoverFile(file: File) {
+        if (!file.type.startsWith('image/')) return
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Image must be smaller than 5MB')
+            return
+        }
+        if (coverPreview && !coverPreview.startsWith('http')) URL.revokeObjectURL(coverPreview)
+        setCoverFile(file)
+        setCoverPreview(URL.createObjectURL(file))
+        setRemoveExistingCover(false)
+    }
+
+    function removeCover() {
+        if (coverPreview && !coverPreview.startsWith('http')) URL.revokeObjectURL(coverPreview)
+        setCoverFile(null)
+        setCoverPreview(null)
+        setRemoveExistingCover(true)
+        if (coverInputRef.current) coverInputRef.current.value = ''
     }
 
     function addSubtask() {
@@ -193,7 +256,7 @@ export default function CreateNewTask({
         )
     }
 
-    async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
+    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault()
         if (!title.trim()) return
         setLoading(true)
@@ -208,8 +271,22 @@ export default function CreateNewTask({
                 subtasks,
                 project_id: projectId ?? null,
             }
-            console.log('Task payload:', payload)
-            await new Promise((r) => setTimeout(r, 600))
+
+            if (taskToEdit) {
+                await editTaskDetailed(
+                    taskToEdit.id,
+                    payload,
+                    coverFile ?? undefined,
+                    projectSlug,
+                    removeExistingCover
+                )
+            } else {
+                await createTask(
+                    payload,
+                    coverFile ?? undefined,
+                    projectSlug,
+                )
+            }
             onCreated?.()
             onOpenChange(false)
             reset()
@@ -230,9 +307,9 @@ export default function CreateNewTask({
             >
                 {/* ── Header ── */}
                 <SheetHeader className="border-b px-6 py-4 shrink-0">
-                    <SheetTitle className="text-base">Create New Task</SheetTitle>
+                    <SheetTitle className="text-base">{taskToEdit ? 'Edit Task' : 'Create New Task'}</SheetTitle>
                     <SheetDescription className="text-xs">
-                        Fill in the details below to add a task to this project.
+                        {taskToEdit ? 'Update task details below.' : 'Fill in the details below to add a task to this project.'}
                     </SheetDescription>
                 </SheetHeader>
 
@@ -255,6 +332,73 @@ export default function CreateNewTask({
                                 className="h-9"
                             />
                         </div>
+
+                        {/* ── Cover Image ── */}
+                        <div>
+                            <FieldLabel icon={ImageIcon}>Cover Image</FieldLabel>
+                            {coverPreview ? (
+                                <div className="relative group rounded-xl overflow-hidden border border-border/40">
+                                    <img
+                                        src={coverPreview}
+                                        alt="Cover preview"
+                                        className="w-full h-[120px] object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={removeCover}
+                                            className="h-7 px-3 text-xs"
+                                        >
+                                            <X className="size-3 mr-1" /> Remove
+                                        </Button>
+                                    </div>
+                                    <span className="absolute bottom-2 left-2 text-[10px] text-white/80 bg-black/50 px-1.5 py-0.5 rounded font-medium truncate max-w-[80%]">
+                                        {coverFile?.name}
+                                    </span>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    disabled={loading}
+                                    onClick={() => coverInputRef.current?.click()}
+                                    onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
+                                    onDragLeave={() => setIsDragOver(false)}
+                                    onDrop={(e) => {
+                                        e.preventDefault()
+                                        setIsDragOver(false)
+                                        const file = e.dataTransfer.files[0]
+                                        if (file) handleCoverFile(file)
+                                    }}
+                                    className={cn(
+                                        'w-full h-[88px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1.5 transition-all duration-150',
+                                        'text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40',
+                                        isDragOver
+                                            ? 'border-primary bg-primary/5 text-primary'
+                                            : 'border-border/60 bg-muted/20 hover:bg-muted/40 hover:border-foreground/20',
+                                    )}
+                                >
+                                    <UploadCloud className="size-5" />
+                                    <span className="text-xs font-medium">
+                                        {isDragOver ? 'Drop to upload' : 'Click or drag image here'}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground/60">PNG, JPG, WEBP · max 5MB</span>
+                                </button>
+                            )}
+                            <input
+                                ref={coverInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) handleCoverFile(file)
+                                }}
+                            />
+                        </div>
+
+                        <Separator />
 
                         {/* ── Description ── */}
                         <div>
@@ -507,7 +651,7 @@ export default function CreateNewTask({
                                     ? <Loader2 className="size-3.5 animate-spin" />
                                     : <SaveIcon className="size-3.5" />
                                 }
-                                Create Task
+                                {taskToEdit ? 'Save Changes' : 'Create Task'}
                             </Button>
                         </div>
                     </SheetFooter>
