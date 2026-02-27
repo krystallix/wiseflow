@@ -8,23 +8,23 @@ export type SubTask = {
     task_id: string;
     title: string;
     is_done: boolean;
-    sort_order: number;
+    sort_order?: number;
 };
 
 export type Task = {
     id: string;
-    project_id?: string;
+    project_id?: string | null;
     title: string;
-    description: string;
-    category: string;
-    tag_id: string;
+    description: string | null;
+    category: string | null;
+    tag_id?: string;
     status: TaskStatus;
     priority: TaskPriority;
-    cover_url?: string;
-    due_date?: string;
-    comments_count: number;
-    attachments_count: number;
-    subtasks: SubTask[];
+    cover_url?: string | null;
+    due_date?: string | null;
+    comments_count?: number;
+    attachments_count?: number;
+    subtasks?: SubTask[];
     created_at: string;
 };
 
