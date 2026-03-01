@@ -15,7 +15,7 @@ import {
 import {
   GalleryVerticalEndIcon, AudioLinesIcon, TerminalIcon,
   LayoutDashboard, Sparkle, Inbox, Calendar, Settings2, LifeBuoy,
-  MessageCircle,
+  MessageCircle, Trash2
 } from "lucide-react"
 
 import { getProjects, type Project } from "@/lib/supabase/projects"
@@ -35,6 +35,7 @@ const data = {
   ],
   navSecondary: [
     { title: "Calendar", url: "/dashboard/calendar", icon: <Calendar /> },
+    { title: "Trash", url: "/dashboard/trash", icon: <Trash2 /> },
     { title: "Settings", url: "/dashboard/settings", icon: <Settings2 /> },
     { title: "Help", url: "/dashboard/help", icon: <LifeBuoy /> },
   ],
@@ -42,22 +43,32 @@ const data = {
 
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const [projects, setProjects] = useState<{ name: string; url: string; icon: React.ReactNode }[]>([])
+  const [projects, setProjects] = useState<{ id: string; name: string; url: string; icon: React.ReactNode; iconName: string; description: string | null }[]>([])
 
-  useEffect(() => {
+  const fetchProjects = React.useCallback(() => {
     getProjects()
       .then((rows: Project[]) => {
         setProjects(
           rows.map((p) => ({
+            id: p.id,
             name: p.name,
             url: `/dashboard/task/${p.slug}`,
             icon: <DynamicIcon name={p.icon} />,
+            iconName: p.icon,
+            description: p.description,
           }))
         )
       })
-      .catch(() => {
-      })
+      .catch(() => { })
   }, [])
+
+  useEffect(() => {
+    fetchProjects()
+
+    const handleProjectUpdated = () => fetchProjects()
+    window.addEventListener('project-updated', handleProjectUpdated)
+    return () => window.removeEventListener('project-updated', handleProjectUpdated)
+  }, [fetchProjects])
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -66,7 +77,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={projects} />
+        <NavProjects projects={projects} onProjectsChange={fetchProjects} />
       </SidebarContent>
       <NavMain items={data.navSecondary} />
       <SidebarRail />

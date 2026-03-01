@@ -18,31 +18,45 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { MoreHorizontalIcon, FolderIcon, ArrowRightIcon, Trash2Icon, Plus } from "lucide-react"
+import { MoreHorizontalIcon, Trash2Icon, Plus, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import DialogProject from "@/components/dialog/create-projects"
+import DialogEditProject from "@/components/dialog/edit-projects"
+import DialogDeleteProject from "@/components/dialog/delete-project"
 
 export function NavProjects({
   projects,
+  onProjectsChange,
 }: {
   projects: {
+    id: string
     name: string
     url: string
     icon: React.ReactNode
+    iconName: string
+    description: string | null
   }[]
+  onProjectsChange?: () => void
 }) {
   const { isMobile } = useSidebar()
   const pathname = usePathname()
-  const [openDialogProject, setOpenDialogProject] = useState(false)
+  const [openDialogEdit, setOpenDialogEdit] = useState(false)
+  const [openDialogDelete, setOpenDialogDelete] = useState(false)
+  const [activeProject, setActiveProject] = useState<any>(null)
+
+  const [openDialogCreate, setopenDialogCreate] = useState(false)
 
   return (
     <>
-      <DialogProject open={openDialogProject} onOpenChange={setOpenDialogProject} />
+      <DialogEditProject open={openDialogEdit} onOpenChange={setOpenDialogEdit} project={activeProject} onSuccess={onProjectsChange} />
+      <DialogDeleteProject open={openDialogDelete} onOpenChange={setOpenDialogDelete} project={activeProject} onSuccess={onProjectsChange} />
+
+      <DialogProject open={openDialogCreate} onOpenChange={setopenDialogCreate} onSuccess={onProjectsChange} />
       <SidebarGroup className="group-data-[collapsible=icon]:hidden">
         <div className="flex justify-between items-center gap-2">
           <SidebarGroupLabel>Projects</SidebarGroupLabel>
-          <Button variant="ghost" size="icon" onClick={() => setOpenDialogProject(true)}>
+          <Button variant="ghost" size="icon" onClick={() => setopenDialogCreate(true)}>
             <Plus />
           </Button>
         </div>
@@ -70,17 +84,17 @@ export function NavProjects({
                     side={isMobile ? "bottom" : "right"}
                     align={isMobile ? "end" : "start"}
                   >
-                    <DropdownMenuItem>
-                      <FolderIcon className="text-muted-foreground" />
-                      <span>View Project</span>
+                    <DropdownMenuItem onClick={() => { setActiveProject(item); setOpenDialogEdit(true); }}>
+                      <Edit className="text-muted-foreground" />
+                      <span>Edit Project</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    {/* <DropdownMenuItem>
                       <ArrowRightIcon className="text-muted-foreground" />
                       <span>Share Project</span>
-                    </DropdownMenuItem>
+                    </DropdownMenuItem> */}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <Trash2Icon className="text-muted-foreground" />
+                    <DropdownMenuItem onClick={() => { setActiveProject(item); setOpenDialogDelete(true); }} className="text-destructive hover:bg-destructive focus:bg-destructive/10 focus:text-destructive">
+                      <Trash2Icon />
                       <span>Delete Project</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Loader2Icon, Save } from 'lucide-react'
 import {
     Dialog,
@@ -14,34 +14,59 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { IconPicker, type IconName } from '@/components/ui/icon-picker'
-import { createProject } from '@/lib/supabase/projects'
+import { updateProject } from '@/lib/supabase/projects'
+import { useRouter, usePathname } from 'next/navigation'
 
-type DialogProjectProps = {
+type DialogEditProjectProps = {
     open: boolean
     onOpenChange: (open: boolean) => void
+    project: {
+        id: string
+        name: string
+        url: string
+        iconName: string
+        description: string | null
+    } | null
     onSuccess?: () => void
 }
 
-export default function DialogProject({ open, onOpenChange, onSuccess }: DialogProjectProps) {
+export default function DialogEditProject({ open, onOpenChange, project, onSuccess }: DialogEditProjectProps) {
     const [name, setName] = useState('')
     const [description, setDescription] = useState('')
     const [icon, setIcon] = useState<IconName>('File')
     const [loading, setLoading] = useState(false)
+    const router = useRouter()
+    const pathname = usePathname()
+
+    useEffect(() => {
+        if (project && open) {
+            setName(project.name)
+            setDescription(project.description || '')
+            setIcon(project.iconName as IconName)
+        }
+    }, [project, open])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!name.trim()) return
+        if (!name.trim() || !project || !project.id) return
         setLoading(true)
 
         try {
-            await createProject(name, icon, description)
+            const updated = await updateProject(project.id, { name, description, icon })
             onOpenChange(false)
-            setName('')
-            setDescription('')
-            setIcon('File')
             onSuccess?.()
+
+            if (pathname === project.url) {
+                const newUrl = `/dashboard/task/${updated.slug}`
+                if (newUrl !== project.url) {
+                    router.push(newUrl)
+                } else {
+                    window.dispatchEvent(new CustomEvent('project-updated', { detail: updated.slug }))
+                    router.refresh()
+                }
+            }
         } catch (error) {
-            console.error('Failed to create project:', error)
+            console.error('Failed to update project:', error)
         } finally {
             setLoading(false)
         }
@@ -55,9 +80,9 @@ export default function DialogProject({ open, onOpenChange, onSuccess }: DialogP
                 transition={{ type: 'spring', stiffness: 1000, damping: 50 }}
             >
                 <DialogHeader>
-                    <DialogTitle className="text-base font-semibold">New Project</DialogTitle>
+                    <DialogTitle className="text-base font-semibold">Edit Project</DialogTitle>
                     <DialogDescription className="text-xs text-muted-foreground">
-                        Create a new project to organize your tasks and workflows.
+                        Update your project details such as name and description.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -113,7 +138,7 @@ export default function DialogProject({ open, onOpenChange, onSuccess }: DialogP
                                 ? <Loader2Icon className="size-3.5 animate-spin" />
                                 : <Save className="size-3.5" />
                             }
-                            Create project
+                            Save changes
                         </Button>
                     </DialogFooter>
                 </form>

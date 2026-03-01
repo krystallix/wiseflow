@@ -293,7 +293,7 @@ export default function TaskDetailSheet({
                 </SheetHeader>
 
                 {/* ── Top action bar ── */}
-                <div className="flex items-center justify-between px-6 pt-5 pb-2 shrink-0">
+                <div className="flex items-center justify-between px-2 pt-3 pb-2 shrink-0">
                     {/* Close */}
                     <Button
                         variant="ghost"
@@ -473,7 +473,7 @@ export default function TaskDetailSheet({
                                         value={commentInput}
                                         onChange={e => setCommentInput(e.target.value)}
                                         rows={3}
-                                        className="resize-none text-sm outline-none focus-visible:ring-0"
+                                        className="resize-none text-sm outline-none focus-visible:ring-0 px-3 py-2"
                                         disabled={commentSending}
                                         onKeyDown={e => {
                                             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {

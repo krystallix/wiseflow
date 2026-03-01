@@ -92,7 +92,7 @@ export const columns: ColumnDef<SupabaseTask>[] = [
             const task = row.original;
             return (
                 <div className="flex flex-col gap-0.5 py-0.5 w-[28%] min-w-[200px] h-[38px] justify-center">
-                    <div className="flex items-center gap-2">
+                    <div className={cn("flex items-center gap-2", !task.description && "h-full")}>
                         {task.tag_id && (
                             <Badge variant="outline" className="px-1.5 py-0 h-[16px] text-[8.5px] text-muted-foreground font-semibold border-border/60 uppercase shrink-0">
                                 {task.tag_id}
@@ -100,9 +100,11 @@ export const columns: ColumnDef<SupabaseTask>[] = [
                         )}
                         <h4 className="font-semibold text-foreground text-[13px] truncate max-w-[220px] leading-tight">{task.title}</h4>
                     </div>
-                    <p className="text-[11px] text-muted-foreground truncate max-w-[260px] font-medium leading-tight min-h-[14px]">
-                        {task.description || "\u00A0"}
-                    </p>
+                    {task.description && (
+                        <p className="text-[11px] text-muted-foreground truncate max-w-[260px] font-medium leading-tight">
+                            {task.description}
+                        </p>
+                    )}
                 </div>
             );
         },

@@ -64,3 +64,48 @@ export async function createProject(name: string, icon: string, description: str
     if (error) throw error
     return data
 }
+
+export async function updateProject(id: string, updates: Partial<Pick<Project, 'name' | 'icon' | 'description'>>) {
+    const supabase = createClient()
+
+    // Optional: Only update valid properties
+    const updateData: Record<string, unknown> = { ...updates, updated_at: new Date().toISOString() }
+    if (updates.name) {
+        updateData.slug = toSlug(updates.name)
+    }
+
+    const { data, error } = await supabase
+        .schema('risenwise')
+        .from('projects')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single()
+
+    if (error) throw error
+    return data
+}
+
+export async function softDeleteProject(id: string) {
+    const supabase = createClient()
+    const now = new Date().toISOString()
+
+    const { data, error } = await supabase
+        .schema('risenwise')
+        .from('projects')
+        .update({ deleted_at: now })
+        .eq('id', id)
+        .select()
+        .single()
+
+    if (error) throw error
+
+    // Soft delete associated tasks
+    await supabase
+        .schema('risenwise')
+        .from('tasks')
+        .update({ deleted_at: now })
+        .eq('project_id', id)
+
+    return data
+}

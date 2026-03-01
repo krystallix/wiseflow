@@ -28,6 +28,7 @@ export type Task = {
     position: number
     created_at: string
     updated_at: string
+    deleted_at?: string | null
     // Optional fields that may come from DB or KanbanView display
     tag_id?: string
     cover_url?: string
@@ -157,6 +158,7 @@ export async function getTasks(projectId?: string): Promise<Task[]> {
         .schema('risenwise')
         .from('tasks')
         .select('*, subtasks:task_subtasks(*)')
+        .is('deleted_at', null)
         .order('position', { ascending: true })
         .order('created_at', { ascending: true })
 
@@ -335,7 +337,7 @@ export async function deleteTask(id: string): Promise<void> {
     const { error } = await supabase
         .schema('risenwise')
         .from('tasks')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', id)
 
     if (error) throw error

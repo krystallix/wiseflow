@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { use } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { LayoutDashboard, List, Plus, RefreshCw, Upload, Workflow } from "lucide-react";
+import { LayoutDashboard, List, Plus, RefreshCw, Upload, Workflow, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
     Tabs,
@@ -47,84 +47,6 @@ function groupByStatus(tasks: Task[]): Record<TaskStatus, Task[]> {
     return columns
 }
 
-// ─── Skeleton Components ───────────────────────────────────────────────────────
-
-function HeaderSkeleton() {
-    return (
-        <div className="flex justify-between items-center shrink-0">
-            <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                    <Skeleton className="size-7 rounded-md" />
-                    <Skeleton className="h-9 w-52 rounded-md" />
-                </div>
-                <Skeleton className="h-3 w-64 rounded" />
-            </div>
-            <div className="flex items-center gap-2 me-2">
-                <Skeleton className="size-10 rounded-md" />
-                <Skeleton className="h-9 w-24 rounded-full hidden sm:block" />
-                <Skeleton className="h-9 w-36 rounded-full hidden sm:block" />
-            </div>
-        </div>
-    )
-}
-
-function KanbanCardSkeleton() {
-    return (
-        <div className="rounded-[1.2rem] p-[14px] border border-border/30 bg-card flex flex-col gap-3">
-            <div className="flex gap-1.5">
-                <Skeleton className="h-4 w-12 rounded-[4px]" />
-                <Skeleton className="h-4 w-16 rounded-[4px]" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-                <Skeleton className="h-4 w-full rounded" />
-                <Skeleton className="h-3 w-4/5 rounded" />
-                <Skeleton className="h-3 w-3/5 rounded" />
-            </div>
-            <div className="flex items-center justify-between pt-1">
-                <Skeleton className="h-3 w-20 rounded" />
-                <div className="flex gap-1.5">
-                    <Skeleton className="h-5 w-10 rounded-[5px]" />
-                    <Skeleton className="h-5 w-10 rounded-[5px]" />
-                </div>
-            </div>
-        </div>
-    )
-}
-
-function KanbanSkeleton() {
-    const columns = [
-        { label: 'To Do', color: 'bg-muted-foreground/40', cards: 3 },
-        { label: 'On Progress', color: 'bg-yellow-400', cards: 4 },
-        { label: 'Done', color: 'bg-green-400', cards: 2 },
-        { label: 'Cancel', color: 'bg-red-400', cards: 1 },
-    ]
-
-    return (
-        <div className="flex w-full h-full gap-4 overflow-x-auto no-scrollbar">
-            {columns.map((col) => (
-                <div key={col.label} className="flex flex-col w-[280px] sm:w-[290px] shrink-0 h-full p-1 overflow-hidden">
-                    {/* Column header */}
-                    <div className="flex items-center justify-between mb-3 px-1.5">
-                        <div className="flex items-center gap-2">
-                            <div className={cn("w-[4px] h-[16px] rounded-full", col.color)} />
-                            <span className="font-bold text-foreground text-[14px]">{col.label}</span>
-                            <div className="flex bg-muted text-muted-foreground min-w-[18px] h-[18px] px-1 items-center justify-center rounded-[4px] font-bold text-[10px] ml-1">
-                                {col.cards}
-                            </div>
-                        </div>
-                    </div>
-                    {/* Cards */}
-                    <div className="flex-1 flex flex-col gap-3 overflow-y-auto no-scrollbar pb-10 px-1 pt-1">
-                        {Array.from({ length: col.cards }).map((_, i) => (
-                            <KanbanCardSkeleton key={i} />
-                        ))}
-                    </div>
-                </div>
-            ))}
-        </div>
-    )
-}
-
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TaskPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -140,13 +62,27 @@ export default function TaskPage({ params }: { params: Promise<{ slug: string }>
     const [selectedTask, setSelectedTask] = useState<Task | null>(null)
     const [detailOpen, setDetailOpen] = useState(false)
 
-    // Fetch project
-    useEffect(() => {
+    const fetchProject = useCallback(() => {
         getProjectBySlug(slug)
             .then(setProject)
             .catch(console.error)
             .finally(() => setProjectLoading(false))
     }, [slug])
+
+    // Fetch project
+    useEffect(() => {
+        fetchProject()
+
+        const handleProjectUpdated = (e: Event) => {
+            const customEvent = e as CustomEvent
+            if (customEvent.detail === slug) {
+                fetchProject()
+            }
+        }
+
+        window.addEventListener('project-updated', handleProjectUpdated)
+        return () => window.removeEventListener('project-updated', handleProjectUpdated)
+    }, [fetchProject, slug])
 
     // Fetch tasks whenever project is loaded
     const fetchTasks = useCallback(async (projectId: string) => {
@@ -170,6 +106,30 @@ export default function TaskPage({ params }: { params: Promise<{ slug: string }>
 
     // Combined loading = project belum selesai ATAU tasks pertama kali belum load
     const isInitialLoading = projectLoading || (!!project && !initialTasksLoaded)
+
+    if (isInitialLoading) {
+        return (
+            <div className="flex w-full h-[calc(100vh-theme(spacing.24))] items-center justify-center">
+                <Loader2Icon className="size-10 text-muted-foreground animate-spin" />
+            </div>
+        )
+    }
+
+    if (!project) {
+        return (
+            <div className="flex flex-col w-full h-[calc(100vh-theme(spacing.24))] items-center justify-center gap-2">
+                <div className="text-center flex flex-col items-center">
+                    <h1 className="font-bold text-3xl mb-1">Project Not Found</h1>
+                    <p className="text-muted-foreground text-sm mb-6 max-w-sm">
+                        The project you're looking for doesn't exist or may have been deleted.
+                    </p>
+                    <Button asChild className="rounded-full shadow-sm">
+                        <Link href="/dashboard">Back to Dashboard</Link>
+                    </Button>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <>
@@ -211,61 +171,52 @@ export default function TaskPage({ params }: { params: Promise<{ slug: string }>
                     setOpenCreateTask(op)
                     if (!op) setTaskToEdit(null) // reset on close
                 }}
-                projectId={project?.id}
+                projectId={project.id}
                 projectSlug={slug}
                 defaultStatus={creationDefaultStatus}
                 taskToEdit={taskToEdit}
                 onCreated={() => {
-                    if (project?.id) fetchTasks(project.id)
+                    fetchTasks(project.id)
                 }}
             />
             <div className="flex h-[calc(100vh-theme(spacing.24))] flex-col max-w-full overflow-hidden w-full gap-4 animate-in fade-in zoom-in-95 duration-500">
 
                 {/* ── Header ── */}
-                {isInitialLoading ? (
-                    <HeaderSkeleton />
-                ) : (
-                    <div className="flex justify-between items-center shrink-0">
-                        <div className="flex flex-col gap-1">
-                            {!project ? (
-                                <h1 className="font-bold text-3xl text-muted-foreground">Project not found</h1>
-                            ) : (
-                                <div className="flex items-center gap-2">
-                                    <DynamicIcon name={project.icon} className="size-7" />
-                                    <h1 className="font-bold text-3xl">{project.name}</h1>
-                                </div>
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                                {project?.description}
-                            </p>
+                <div className="flex justify-between items-center shrink-0">
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                            <DynamicIcon name={project.icon} className="size-7" />
+                            <h1 className="font-bold text-3xl">{project.name}</h1>
                         </div>
-                        <div className="flex justify-end me-2">
-                            <Button
-                                size="icon-lg"
-                                variant="outline"
-                                disabled={tasksLoading || !project}
-                                onClick={() => project?.id && fetchTasks(project.id)}
-                                aria-label="Refresh tasks"
-                            >
-                                <RefreshCw className={cn("transition-transform", tasksLoading && "animate-spin")} />
-                            </Button>
-                            <Button size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90 shadow-sm h-9 px-4 ml-2 hidden sm:flex font-semibold text-xs border-none">
-                                <Upload className="mr-1 size-4" /> Export
-                            </Button>
-                            <Button
-                                size="sm"
-                                className="rounded-full bg-foreground text-background hover:bg-foreground/90 shadow-sm h-9 px-4 ml-2 hidden sm:flex font-semibold text-xs border-none"
-                                onClick={() => {
-                                    setCreationDefaultStatus('todo')
-                                    setOpenCreateTask(true)
-                                }}
-                                disabled={!project}
-                            >
-                                <Plus className="mr-1 size-4" /> Create New Task
-                            </Button>
-                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            {project.description}
+                        </p>
                     </div>
-                )}
+                    <div className="flex justify-end me-2">
+                        <Button
+                            size="icon-lg"
+                            variant="outline"
+                            disabled={tasksLoading}
+                            onClick={() => fetchTasks(project.id)}
+                            aria-label="Refresh tasks"
+                        >
+                            <RefreshCw className={cn("transition-transform", tasksLoading && "animate-spin")} />
+                        </Button>
+                        <Button size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90 shadow-sm h-9 px-4 ml-2 hidden sm:flex font-semibold text-xs border-none">
+                            <Upload className="mr-1 size-4" /> Export
+                        </Button>
+                        <Button
+                            size="sm"
+                            className="rounded-full bg-foreground text-background hover:bg-foreground/90 shadow-sm h-9 px-4 ml-2 hidden sm:flex font-semibold text-xs border-none"
+                            onClick={() => {
+                                setCreationDefaultStatus('todo')
+                                setOpenCreateTask(true)
+                            }}
+                        >
+                            <Plus className="mr-1 size-4" /> Create New Task
+                        </Button>
+                    </div>
+                </div>
 
                 {/* ── Tab content ── */}
                 <div className="flex-1 flex flex-col min-h-0 w-full">
@@ -290,22 +241,18 @@ export default function TaskPage({ params }: { params: Promise<{ slug: string }>
                             />
                             <TabsContents fillHeight className="flex-1 w-full min-w-0 p-4">
                                 <TabsContent value="kanban" className="h-full w-full overflow-x-auto overflow-y-hidden">
-                                    {isInitialLoading ? (
-                                        <KanbanSkeleton />
-                                    ) : (
-                                        <KanbanView
-                                            columns={columns}
-                                            setColumns={setColumns}
-                                            onTaskClick={(task) => {
-                                                setSelectedTask(task)
-                                                setDetailOpen(true)
-                                            }}
-                                            onAddTask={(status) => {
-                                                setCreationDefaultStatus(status)
-                                                setOpenCreateTask(true)
-                                            }}
-                                        />
-                                    )}
+                                    <KanbanView
+                                        columns={columns}
+                                        setColumns={setColumns}
+                                        onTaskClick={(task) => {
+                                            setSelectedTask(task)
+                                            setDetailOpen(true)
+                                        }}
+                                        onAddTask={(status) => {
+                                            setCreationDefaultStatus(status)
+                                            setOpenCreateTask(true)
+                                        }}
+                                    />
                                 </TabsContent>
                                 <TabsContent value="list" className="h-full w-full overflow-hidden">
                                     <ListView
