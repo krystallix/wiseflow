@@ -137,7 +137,7 @@ export default function TaskPage({ params }: { params: Promise<{ slug: string }>
                 task={selectedTask}
                 open={detailOpen}
                 onOpenChange={setDetailOpen}
-                onEdit={(task) => {
+                onUpdate={(task) => {
                     // Update task internally in list
                     setColumns(prev => {
                         const next = { ...prev }
@@ -149,8 +149,8 @@ export default function TaskPage({ params }: { params: Promise<{ slug: string }>
                         }
                         return next
                     })
-                    // If the parent actually requested an edit mode (e.g. from the dropdown or Edit button inside TaskDetailSheet)
-                    // We close the detail sheet and open the edit form.
+                }}
+                onEdit={(task) => {
                     setTaskToEdit(task)
                     setOpenCreateTask(true)
                     setDetailOpen(false)
@@ -202,12 +202,12 @@ export default function TaskPage({ params }: { params: Promise<{ slug: string }>
                         >
                             <RefreshCw className={cn("transition-transform", tasksLoading && "animate-spin")} />
                         </Button>
-                        <Button size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90 shadow-sm h-9 px-4 ml-2 hidden sm:flex font-semibold text-xs border-none">
+                        <Button size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90 h-9 px-4 ml-2 hidden sm:flex font-semibold text-xs border-none">
                             <Upload className="mr-1 size-4" /> Export
                         </Button>
                         <Button
                             size="sm"
-                            className="rounded-full bg-foreground text-background hover:bg-foreground/90 shadow-sm h-9 px-4 ml-2 hidden sm:flex font-semibold text-xs border-none"
+                            className="rounded-full bg-foreground text-background hover:bg-foreground/90 h-9 px-4 ml-2 hidden sm:flex font-semibold text-xs border-none"
                             onClick={() => {
                                 setCreationDefaultStatus('todo')
                                 setOpenCreateTask(true)

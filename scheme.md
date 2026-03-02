@@ -136,6 +136,23 @@ create table risenwise.notifications (
 
 ---
 
+### `notes`
+Personal notes.
+
+```sql
+create table risenwise.notes (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  title       text not null,
+  content     text,
+  created_at  timestamptz default now(),
+  updated_at  timestamptz default now(),
+  deleted_at  timestamptz default null
+);
+```
+
+---
+
 ## Row Level Security (RLS)
 
 Enable RLS on all tables — users can only access their own data.
@@ -147,36 +164,41 @@ alter table risenwise.task_subtasks     enable row level security;
 alter table risenwise.task_comments     enable row level security;
 alter table risenwise.task_attachments  enable row level security;
 alter table risenwise.notifications     enable row level security;
+alter table risenwise.notes             enable row level security;
 ```
 
 ### Policies
 
-> All policies filter out soft-deleted rows (`deleted_at is null`).
+> All policies allow access to records owned by the user (auth.uid() = user_id). Wait for soft-deletes filtering to be handled by application queries (`is(deleted_at, null)`).
 
 ```sql
 -- Projects
 create policy "Owner only" on risenwise.projects
-  for all using (auth.uid() = user_id and deleted_at is null);
+  for all using ((select auth.uid()) = user_id);
 
 -- Tasks
 create policy "Owner only" on risenwise.tasks
-  for all using (auth.uid() = user_id and deleted_at is null);
+  for all using ((select auth.uid()) = user_id);
 
 -- Subtasks
 create policy "Owner only" on risenwise.task_subtasks
-  for all using (auth.uid() = user_id and deleted_at is null);
+  for all using ((select auth.uid()) = user_id);
 
 -- Task Comments
 create policy "Owner only" on risenwise.task_comments
-  for all using (auth.uid() = user_id and deleted_at is null);
+  for all using ((select auth.uid()) = user_id);
 
 -- Task Attachments
 create policy "Owner only" on risenwise.task_attachments
-  for all using (auth.uid() = user_id and deleted_at is null);
+  for all using ((select auth.uid()) = user_id);
 
 -- Notifications
 create policy "Owner only" on risenwise.notifications
-  for all using (auth.uid() = user_id and deleted_at is null);
+  for all using ((select auth.uid()) = user_id);
+
+-- Notes
+create policy "Owner only" on risenwise.notes
+  for all using ((select auth.uid()) = user_id);
 ```
 
 ---
@@ -262,6 +284,11 @@ create index idx_attachments_task
 create index idx_notifications_user_unread
   on risenwise.notifications (user_id, is_read)
   where deleted_at is null;
+
+-- notes: fetch notes by user
+create index idx_notes_user
+  on risenwise.notes (user_id)
+  where deleted_at is null;
 ```
 
 ---
@@ -276,3 +303,4 @@ create index idx_notifications_user_unread
 | 2026-02-26 | Renamed schema from `public` to `risenwise` |
 | 2026-02-26 | Added `deleted_at` to all tables for soft delete support |
 | 2026-02-26 | Added partial indexes on all hot query paths |
+| 2026-03-03 | Added `notes` table with RLS and index |

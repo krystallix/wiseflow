@@ -250,11 +250,12 @@ export async function editTaskDetailed(
     if (existingSubtasks && existingSubtasks.length > 0) {
         const toDelete = existingSubtasks.filter(e => !incomingIds.includes(e.id)).map(e => e.id)
         if (toDelete.length > 0) {
-            await supabase
+            const { error: deleteErr } = await supabase
                 .schema('risenwise')
                 .from('task_subtasks')
-                .update({ deleted_at: new Date().toISOString() })
+                .delete()
                 .in('id', toDelete)
+            if (deleteErr) throw deleteErr
         }
     }
 
@@ -263,14 +264,15 @@ export async function editTaskDetailed(
         const st = incomingSubtasks[i]
         const isExisting = existingSubtasks?.some(e => e.id === st.id)
         if (isExisting) {
-            await supabase
+            const { error: updErr } = await supabase
                 .schema('risenwise')
                 .from('task_subtasks')
                 .update({ title: st.title, is_done: st.is_done, sort_order: i })
                 .eq('id', st.id)
+            if (updErr) throw updErr
         } else {
             // New subtask, strip ID to let DB generate it
-            await supabase
+            const { error: insErr } = await supabase
                 .schema('risenwise')
                 .from('task_subtasks')
                 .insert({
@@ -280,6 +282,7 @@ export async function editTaskDetailed(
                     is_done: st.is_done,
                     sort_order: i
                 })
+            if (insErr) throw insErr
         }
     }
 
