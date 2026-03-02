@@ -43,6 +43,7 @@ import {
     updateSubtaskStatus,
     deleteTaskCascade,
 } from '@/lib/supabase/task-interactions'
+import { toast } from 'sonner'
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
@@ -129,8 +130,9 @@ interface TaskDetailSheetProps {
     task: Task | null
     open: boolean
     onOpenChange: (open: boolean) => void
-    onDelete?: (taskId: string) => void
     onEdit?: (task: Task) => void
+    onUpdate?: (task: Task) => void
+    onDelete?: (taskId: string) => void
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -141,6 +143,7 @@ export default function TaskDetailSheet({
     onOpenChange,
     onDelete,
     onEdit,
+    onUpdate,
 }: TaskDetailSheetProps) {
     const attachInputRef = useRef<HTMLInputElement>(null)
     const [activeTab, setActiveTab] = useState<'comments' | 'attachments'>('comments')
@@ -253,7 +256,7 @@ export default function TaskDetailSheet({
         const updatedTask = { ...liveTask, subtasks: newSubtasks }
         setLiveTask(updatedTask)
         // Also inform parent so other views update instantly if possible
-        onEdit?.(updatedTask)
+        onUpdate?.(updatedTask)
 
         try {
             await updateSubtaskStatus(subtaskId, newDone)
@@ -261,24 +264,32 @@ export default function TaskDetailSheet({
             console.error('Failed to toggle subtask', err)
             // Revert on error
             setLiveTask(liveTask)
-            onEdit?.(liveTask)
+            onUpdate?.(liveTask)
         }
     }
 
     async function handleDeleteTask() {
         if (!task?.id) return
-        if (!confirm('Are you sure you want to delete this task? All subtasks, comments, and attachments will be deleted.')) return
-        setDeletingTask(true)
-        try {
-            await deleteTaskCascade(task.id)
-            onDelete?.(task.id)
-            onOpenChange(false)
-        } catch (err) {
-            console.error('Failed to delete task', err)
-            alert('Failed to delete task.')
-        } finally {
-            setDeletingTask(false)
-        }
+        toast('Delete this task?', {
+            description: 'All subtasks, comments, and attachments will be deleted. This cannot be undone.',
+            action: {
+                label: 'Delete',
+                onClick: async () => {
+                    setDeletingTask(true)
+                    try {
+                        await deleteTaskCascade(task.id)
+                        onDelete?.(task.id)
+                        onOpenChange(false)
+                    } catch (err) {
+                        console.error('Failed to delete task', err)
+                        toast.error('Failed to delete task.')
+                    } finally {
+                        setDeletingTask(false)
+                    }
+                },
+            },
+            actionButtonStyle: { backgroundColor: '#F85149', color: '#fff', fontWeight: '600' },
+        })
     }
 
     return (

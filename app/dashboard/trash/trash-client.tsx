@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { DynamicIcon } from "@/lib/dynamic-icon"
+import { toast } from "sonner"
 
 const statusConfig: Record<string, { label: string; style: string; icon: React.ElementType }> = {
     todo: { label: 'To Do', style: 'bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20', icon: Circle },
@@ -186,14 +187,24 @@ export function TrashClient({
             router.refresh()
         } catch (e) {
             console.error(e)
-            alert("Failed to restore items")
+            toast.error("Failed to restore items")
         } finally {
             setLoading(false)
         }
     }
 
     const permanentDeleteSelected = async () => {
-        if (!confirm("Are you sure you want to permanently delete these items?")) return
+        const toastId = toast("Delete permanently?", {
+            description: "These items cannot be recovered after deletion.",
+            action: {
+                label: 'Delete Forever',
+                onClick: () => doPermanentDelete(),
+            },
+            actionButtonStyle: { backgroundColor: '#F85149', color: '#fff', fontWeight: '600' },
+        })
+    }
+
+    const doPermanentDelete = async () => {
         setLoading(true)
         const supabase = createClient()
         try {
@@ -219,7 +230,7 @@ export function TrashClient({
             router.refresh()
         } catch (e) {
             console.error(e)
-            alert("Failed to permanently delete items")
+            toast.error("Failed to permanently delete items")
         } finally {
             setLoading(false)
         }
@@ -238,12 +249,12 @@ export function TrashClient({
                     <p className="text-xs text-muted-foreground">
                         Items will be permanently deleted from the bin after 30 days                    </p>
                 </div>
-                <div className="flex gap-4 mb-2">
-                    <Button variant="outline" size="sm" onClick={restoreSelected} disabled={!isAnySelected || loading} className="gap-2">
+                <div className="flex mb-2">
+                    <Button variant="outline" size="lg" onClick={restoreSelected} disabled={!isAnySelected || loading} className="rounded-full  h-9 px-4 ml-2 hidden sm:flex font-semibold text-xs">
                         <RotateCcw className="w-4 h-4" /> Restore
                     </Button>
-                    <Button variant="destructive" size="sm" onClick={permanentDeleteSelected} disabled={!isAnySelected || loading} className="gap-2">
-                        <Trash2 className="w-4 h-4" /> Delete Forever
+                    <Button variant="destructive" size="sm" onClick={permanentDeleteSelected} disabled={!isAnySelected || loading} className="rounded-full  h-9 px-4 ml-2 hidden sm:flex font-semibold text-xs border-none">
+                        <Trash2 className="w-4 h-4" /> Delete
                     </Button>
                 </div>
             </div>

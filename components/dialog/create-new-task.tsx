@@ -37,6 +37,7 @@ import {
     type Task,
 } from '@/lib/supabase/tasks'
 import { uploadCoverForTask } from '@/lib/supabase/task-interactions'
+import { toast } from 'sonner'
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 
@@ -212,7 +213,7 @@ export default function CreateNewTask({
     function handleCoverFile(file: File) {
         if (!file.type.startsWith('image/')) return
         if (file.size > 5 * 1024 * 1024) {
-            alert('Image must be smaller than 5MB')
+            toast.error('Image too large', { description: 'Image must be smaller than 5MB.' })
             return
         }
         if (coverPreview && !coverPreview.startsWith('http')) URL.revokeObjectURL(coverPreview)
