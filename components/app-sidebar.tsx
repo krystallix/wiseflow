@@ -15,7 +15,9 @@ import {
 import {
   GalleryVerticalEndIcon, AudioLinesIcon, TerminalIcon,
   LayoutDashboard, Sparkle, Inbox, Calendar, Settings2, LifeBuoy,
-  MessageCircle, Trash2
+  MessageCircle, Trash2,
+  Wallet,
+  Notebook
 } from "lucide-react"
 
 import { getProjects, type Project } from "@/lib/supabase/projects"
@@ -29,9 +31,10 @@ const data = {
   ],
   navMain: [
     { title: "Home", url: "/dashboard", icon: <LayoutDashboard /> },
-    { title: "Chat", url: "/dashboard/chat", icon: <MessageCircle /> },
     { title: "Ask AI", url: "/dashboard/ask-ai", icon: <Sparkle /> },
     { title: "Inbox", url: "/dashboard/inbox", icon: <Inbox /> },
+    { title: "Notes", url: "/dashboard/notes", icon: <Notebook /> },
+    { title: "Finance", url: "/dashboard/finance", icon: <Wallet /> },
   ],
   navSecondary: [
     { title: "Calendar", url: "/dashboard/calendar", icon: <Calendar /> },

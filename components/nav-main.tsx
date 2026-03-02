@@ -32,7 +32,7 @@ export function NavMain({
               : pathname.startsWith(item.url)
 
           return (
-            <SidebarMenuItem key={item.title}>
+            <SidebarMenuItem className="py-0.5" key={item.title}>
               <SidebarMenuButton asChild tooltip={item.title} isActive={isActive}>
                 <Link href={item.url}>
                   {item.icon}
