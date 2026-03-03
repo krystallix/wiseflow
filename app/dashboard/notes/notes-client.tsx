@@ -14,6 +14,24 @@ import { cn } from "@/lib/utils";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/** Extract plain text preview from a BlockNote JSON string. */
+function extractTextFromBlockNote(content: string | null | undefined): string {
+    if (!content) return ""
+    try {
+        const blocks = JSON.parse(content)
+        if (!Array.isArray(blocks)) return ""
+        return blocks
+            .flatMap((block: any) => block?.content ?? [])
+            .filter((inline: any) => inline?.type === "text")
+            .map((inline: any) => inline.text as string)
+            .join(" ")
+            .trim()
+    } catch {
+        return content
+    }
+}
+
+
 function formatNoteDate(dateStr: string): string {
     const date = new Date(dateStr);
     const now = new Date();
@@ -296,7 +314,7 @@ export function NotesClient({ initialNotes, initialDeletedNotes }: NotesClientPr
                                                 <span className="font-medium text-sm truncate">{note.title}</span>
                                                 <span className="text-[10px] text-muted-foreground mt-1 shrink-0">{formatNoteDate(note.updated_at)}</span>
                                             </div>
-                                            <span className="text-xs text-muted-foreground truncate">{note.content ?? ""}</span>
+                                            <span className="text-xs text-muted-foreground truncate">{extractTextFromBlockNote(note.content)}</span>
                                         </div>
                                     ))}
                                 </CollapsibleContent>
@@ -326,7 +344,7 @@ export function NotesClient({ initialNotes, initialDeletedNotes }: NotesClientPr
                                                 <span className="font-medium text-sm truncate line-through">{note.title}</span>
                                                 <span className="text-[10px] text-muted-foreground mt-1 shrink-0">{formatNoteDate(note.deleted_at!)}</span>
                                             </div>
-                                            <span className="text-xs text-muted-foreground truncate">{note.content ?? ""}</span>
+                                            <span className="text-xs text-muted-foreground truncate">{extractTextFromBlockNote(note.content)}</span>
                                         </div>
                                     ))}
                                 </CollapsibleContent>
