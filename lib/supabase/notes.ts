@@ -1,5 +1,11 @@
 import { createClient } from "@/lib/supabase/server"
 
+async function getClient() {
+    const sb = await createClient()
+    if (!sb) throw new Error('Supabase server client not available')
+    return sb
+}
+
 export type Note = {
     id: string
     user_id: string
@@ -14,7 +20,7 @@ export type Note = {
  * Get all active notes (deleted_at IS NULL) for the current user.
  */
 export async function getNotes(): Promise<Note[]> {
-    const supabase = await createClient()
+    const supabase = await getClient()
 
     const { data, error } = await supabase
         .schema('risenwise')
@@ -31,7 +37,7 @@ export async function getNotes(): Promise<Note[]> {
  * Get all recently-deleted notes (deleted_at IS NOT NULL) for the current user.
  */
 export async function getDeletedNotes(): Promise<Note[]> {
-    const supabase = await createClient()
+    const supabase = await getClient()
 
     const { data, error } = await supabase
         .schema('risenwise')
@@ -48,7 +54,7 @@ export async function getDeletedNotes(): Promise<Note[]> {
  * Get a single note by id.
  */
 export async function getNoteById(id: string): Promise<Note | null> {
-    const supabase = await createClient()
+    const supabase = await getClient()
 
     const { data, error } = await supabase
         .schema('risenwise')
@@ -65,7 +71,7 @@ export async function getNoteById(id: string): Promise<Note | null> {
  * Create a new note.
  */
 export async function createNote(title: string, content: string = '') {
-    const supabase = await createClient()
+    const supabase = await getClient()
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
@@ -89,7 +95,7 @@ export async function createNote(title: string, content: string = '') {
  * Update a note's title and/or content.
  */
 export async function updateNote(id: string, updates: Partial<Pick<Note, 'title' | 'content'>>) {
-    const supabase = await createClient()
+    const supabase = await getClient()
 
     const { data, error } = await supabase
         .schema('risenwise')
@@ -107,7 +113,7 @@ export async function updateNote(id: string, updates: Partial<Pick<Note, 'title'
  * Soft-delete a note (set deleted_at to now).
  */
 export async function softDeleteNote(id: string) {
-    const supabase = await createClient()
+    const supabase = await getClient()
 
     const { error } = await supabase
         .schema('risenwise')
@@ -122,7 +128,7 @@ export async function softDeleteNote(id: string) {
  * Restore a soft-deleted note (set deleted_at to null).
  */
 export async function restoreNote(id: string) {
-    const supabase = await createClient()
+    const supabase = await getClient()
 
     const { data, error } = await supabase
         .schema('risenwise')
@@ -140,7 +146,7 @@ export async function restoreNote(id: string) {
  * Permanently delete a note.
  */
 export async function permanentlyDeleteNote(id: string) {
-    const supabase = await createClient()
+    const supabase = await getClient()
 
     const { error } = await supabase
         .schema('risenwise')

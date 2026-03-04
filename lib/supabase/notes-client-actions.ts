@@ -2,7 +2,7 @@
  * Client-side note mutations — uses the browser Supabase client.
  * Import these from Client Components only.
  */
-import { createClient } from "@/lib/supabase/client"
+import { getSupabase as createClient } from "@/lib/supabase/client"
 import type { Note } from "./notes"
 
 export async function createNoteClient(title: string, content: string = ''): Promise<Note> {

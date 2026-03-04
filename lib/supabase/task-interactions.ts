@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client'
+import { getSupabase as createClient } from '@/lib/supabase/client'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 

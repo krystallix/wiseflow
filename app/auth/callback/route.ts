@@ -12,13 +12,15 @@ export async function GET(request: Request) {
 
     if (code) {
         const supabase = await createClient()
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
-
-        if (!error) {
-            return NextResponse.redirect(`${origin}${next}`)
+        if (supabase) {
+            const { error } = await supabase.auth.exchangeCodeForSession(code)
+            if (!error) {
+                return NextResponse.redirect(`${origin}${next}`)
+            }
         }
     }
 
     // Auth failed — redirect to login with error
     return NextResponse.redirect(`${origin}/login?error=auth_failed`)
 }
+

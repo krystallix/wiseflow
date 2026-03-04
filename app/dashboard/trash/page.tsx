@@ -4,6 +4,14 @@ import { TrashClient } from "./trash-client"
 export default async function TrashPage() {
     const supabase = await createClient()
 
+    if (!supabase) {
+        return (
+            <div className="flex h-[calc(100vh-theme(spacing.24))] flex-col max-w-full overflow-hidden w-full gap-4 animate-in fade-in zoom-in-95 duration-500">
+                <TrashClient initialTasks={[]} initialProjects={[]} />
+            </div>
+        )
+    }
+
     // Fetch deleted tasks
     const { data: tasks, error: tasksError } = await supabase
         .schema('risenwise')
