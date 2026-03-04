@@ -17,12 +17,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 // ─── Provider ──────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const supabase = createClient()
     const [user, setUser] = useState<User | null>(null)
     const [session, setSession] = useState<Session | null>(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
+        // createClient() may return null during SSR/build when env vars are absent.
+        const supabase = createClient()
+        if (!supabase) {
+            setLoading(false)
+            return
+        }
+
         // Get initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session)
@@ -41,7 +47,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [])
 
     const signOut = async () => {
-        await supabase.auth.signOut()
+        const supabase = createClient()
+        if (supabase) {
+            await supabase.auth.signOut()
+        }
     }
 
     return (
@@ -59,3 +68,4 @@ export function useAuth() {
     }
     return context
 }
+
