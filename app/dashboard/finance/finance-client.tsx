@@ -7,6 +7,7 @@ import {
     MoreHorizontal, Trash2, CheckCircle2, Clock, AlertCircle, X,
     DollarSign, BarChart3, Banknote, Receipt
 } from 'lucide-react'
+import { DynamicIcon } from '@/lib/dynamic-icon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -497,7 +498,9 @@ function BudgetProgress({ budget, transactions }: { budget: Budget; transactions
         <div className="space-y-2">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg" style={{ background: `${color}20`, color }}>{budget.category?.icon ?? '📦'}</div>
+                    <div className="p-1.5 rounded-lg" style={{ background: `${color}20`, color }}>
+                        <DynamicIcon name={budget.category?.icon} className="size-3.5" />
+                    </div>
                     <div>
                         <p className="text-xs font-semibold">{budget.category?.name ?? 'Category'}</p>
                         <p className="text-[10px] text-muted-foreground capitalize">{budget.period}</p>
@@ -861,7 +864,14 @@ function AddTransactionModal({ wallets, categories, onClose, onSave }: {
                         <Select value={categoryId} onValueChange={setCategoryId}>
                             <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue placeholder="Select category" /></SelectTrigger>
                             <SelectContent>
-                                {filteredCats.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.icon} {c.name}</SelectItem>)}
+                                {filteredCats.map(c => (
+                                    <SelectItem key={c.id} value={c.id} className="text-xs">
+                                        <span className="flex items-center gap-1.5">
+                                            <DynamicIcon name={c.icon} className="size-3" />
+                                            {c.name}
+                                        </span>
+                                    </SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
@@ -1025,7 +1035,14 @@ function AddBudgetModal({ categories, onClose, onSave }: { categories: Category[
                     <Select value={categoryId} onValueChange={setCategoryId}>
                         <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue placeholder="Expense category" /></SelectTrigger>
                         <SelectContent>
-                            {categories.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.icon} {c.name}</SelectItem>)}
+                            {categories.map(c => (
+                                <SelectItem key={c.id} value={c.id} className="text-xs">
+                                    <span className="flex items-center gap-1.5">
+                                        <DynamicIcon name={c.icon} className="size-3" />
+                                        {c.name}
+                                    </span>
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 </div>
