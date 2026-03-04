@@ -3,9 +3,8 @@ services:
     build:
       context: .
     networks:
-      - dokploy-network
-    environment:
-      - NODE_ENV=production
+      dokploy-network:
+        ipv4_address: 10.0.1.100
     restart: unless-stopped
 
 networks:
