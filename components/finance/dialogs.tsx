@@ -10,10 +10,14 @@ import {
 } from '@/components/ui/select'
 import {
     Dialog,
+    DialogPortal,
+    DialogOverlay,
     DialogContent,
     DialogHeader,
     DialogTitle,
-} from '@/components/animate-ui/components/radix/dialog'
+    DialogClose,
+} from '@/components/animate-ui/primitives/radix/dialog'
+import { XIcon } from 'lucide-react'
 import {
     type Wallet,
     type Category,
@@ -50,6 +54,43 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
 function FormLabel({ children }: { children: React.ReactNode }) {
     return <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">{children}</label>
 }
+
+/**
+ * Shared dialog shell that correctly layers:
+ *   DialogPortal (AnimatePresence) > DialogOverlay (blur fade) > DialogContent (3D spring flip)
+ * — matches the animate-ui primitive animation spec exactly.
+ */
+function FinanceDialogShell({
+    open, onOpenChange, title, children,
+}: {
+    open: boolean
+    onOpenChange: (o: boolean) => void
+    title: string
+    children: React.ReactNode
+}) {
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogPortal>
+                <DialogOverlay className="fixed inset-0 z-50 bg-black/50" />
+                <DialogContent
+                    from="top"
+                    className="bg-background fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md rounded-2xl border p-6 shadow-xl"
+                >
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-5">
+                        <h2 className="font-bold text-base">{title}</h2>
+                        <DialogClose className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                            <XIcon className="size-4" />
+                            <span className="sr-only">Close</span>
+                        </DialogClose>
+                    </div>
+                    {children}
+                </DialogContent>
+            </DialogPortal>
+        </Dialog>
+    )
+}
+
 
 // ─── Add Transaction Dialog ────────────────────────────────────────────────────
 
@@ -98,88 +139,80 @@ export function AddTransactionDialog({ open, onOpenChange, wallets, categories, 
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="rounded-2xl max-w-md">
-                <DialogHeader>
-                    <DialogTitle>New Transaction</DialogTitle>
-                </DialogHeader>
+        <FinanceDialogShell open={open} onOpenChange={onOpenChange} title="New Transaction">
+            {/* Type toggle */}
+            <div className="flex gap-1 bg-muted p-1 rounded-xl mb-4">
+                {(['income', 'expense', 'transfer'] as const).map(t => (
+                    <button
+                        key={t}
+                        onClick={() => setType(t)}
+                        className={`flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${type === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                    >
+                        {t}
+                    </button>
+                ))}
+            </div>
 
-                {/* Type toggle */}
-                <div className="flex gap-1 bg-muted p-1 rounded-xl">
-                    {(['income', 'expense', 'transfer'] as const).map(t => (
-                        <button
-                            key={t}
-                            onClick={() => setType(t)}
-                            className={`flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${type === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
-                        >
-                            {t}
-                        </button>
-                    ))}
+            <div className="space-y-3">
+                <div>
+                    <FormLabel>Amount</FormLabel>
+                    <Input value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" type="number" className="text-2xl font-bold h-12 rounded-xl" />
                 </div>
-
-                <div className="space-y-3">
+                <div>
+                    <FormLabel>From Wallet</FormLabel>
+                    <Select value={walletId} onValueChange={setWalletId}>
+                        <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue placeholder="Select wallet" /></SelectTrigger>
+                        <SelectContent>
+                            {wallets.map(w => (
+                                <SelectItem key={w.id} value={w.id} className="text-xs">{w.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                {type === 'transfer' && (
                     <div>
-                        <FormLabel>Amount</FormLabel>
-                        <Input value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" type="number" className="text-2xl font-bold h-12 rounded-xl" />
-                    </div>
-                    <div>
-                        <FormLabel>From Wallet</FormLabel>
-                        <Select value={walletId} onValueChange={setWalletId}>
+                        <FormLabel>To Wallet</FormLabel>
+                        <Select value={transferTo} onValueChange={setTransferTo}>
                             <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue placeholder="Select wallet" /></SelectTrigger>
                             <SelectContent>
-                                {wallets.map(w => (
-                                    <SelectItem key={w.id} value={w.id} className="text-xs">
-                                        {w.name}
+                                {wallets.filter(w => w.id !== walletId).map(w => (
+                                    <SelectItem key={w.id} value={w.id} className="text-xs">{w.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+                {type !== 'transfer' && filteredCats.length > 0 && (
+                    <div>
+                        <FormLabel>Category</FormLabel>
+                        <Select value={categoryId} onValueChange={setCategoryId}>
+                            <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue placeholder="Select category" /></SelectTrigger>
+                            <SelectContent>
+                                {filteredCats.map(c => (
+                                    <SelectItem key={c.id} value={c.id} className="text-xs">
+                                        <span className="flex items-center gap-1.5">
+                                            <DynamicIcon name={c.icon} className="size-3" />
+                                            {c.name}
+                                        </span>
                                     </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     </div>
-                    {type === 'transfer' && (
-                        <div>
-                            <FormLabel>To Wallet</FormLabel>
-                            <Select value={transferTo} onValueChange={setTransferTo}>
-                                <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue placeholder="Select wallet" /></SelectTrigger>
-                                <SelectContent>
-                                    {wallets.filter(w => w.id !== walletId).map(w => (
-                                        <SelectItem key={w.id} value={w.id} className="text-xs">{w.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-                    {type !== 'transfer' && filteredCats.length > 0 && (
-                        <div>
-                            <FormLabel>Category</FormLabel>
-                            <Select value={categoryId} onValueChange={setCategoryId}>
-                                <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue placeholder="Select category" /></SelectTrigger>
-                                <SelectContent>
-                                    {filteredCats.map(c => (
-                                        <SelectItem key={c.id} value={c.id} className="text-xs">
-                                            <span className="flex items-center gap-1.5">
-                                                <DynamicIcon name={c.icon} className="size-3" />
-                                                {c.name}
-                                            </span>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-                    <div>
-                        <FormLabel>Note</FormLabel>
-                        <Input value={note} onChange={e => setNote(e.target.value)} placeholder="Optional note" className="rounded-xl text-xs h-9" />
-                    </div>
-                    <div>
-                        <FormLabel>Date</FormLabel>
-                        <Input value={date} onChange={e => setDate(e.target.value)} type="date" className="rounded-xl text-xs h-9" />
-                    </div>
-                    <Button onClick={handleSave} disabled={saving} className="w-full rounded-xl font-semibold mt-1">
-                        {saving ? 'Saving…' : 'Save Transaction'}
-                    </Button>
+                )}
+                <div>
+                    <FormLabel>Note</FormLabel>
+                    <Input value={note} onChange={e => setNote(e.target.value)} placeholder="Optional note" className="rounded-xl text-xs h-9" />
                 </div>
-            </DialogContent>
-        </Dialog>
+                <div>
+                    <FormLabel>Date</FormLabel>
+                    <Input value={date} onChange={e => setDate(e.target.value)} type="date" className="rounded-xl text-xs h-9" />
+                </div>
+                <Button onClick={handleSave} disabled={saving} className="w-full rounded-xl font-semibold mt-1">
+                    {saving ? 'Saving…' : 'Save Transaction'}
+                </Button>
+            </div>
+        </FinanceDialogShell>
     )
 }
 
@@ -208,41 +241,36 @@ export function AddWalletDialog({ open, onOpenChange, onSave }: AddWalletProps) 
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="rounded-2xl max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Add Wallet</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-3">
-                    <div>
-                        <FormLabel>Name</FormLabel>
-                        <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. BCA Savings" className="rounded-xl text-xs h-9" />
-                    </div>
-                    <div>
-                        <FormLabel>Type</FormLabel>
-                        <Select value={type} onValueChange={setType}>
-                            <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                {WALLET_TYPES.map(t => (
-                                    <SelectItem key={t} value={t} className="text-xs capitalize">{t}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <FormLabel>Initial Balance (IDR)</FormLabel>
-                        <Input value={balance} onChange={e => setBalance(e.target.value)} type="number" className="rounded-xl text-xs h-9" />
-                    </div>
-                    <div>
-                        <FormLabel>Color</FormLabel>
-                        <ColorPicker value={color} onChange={setColor} />
-                    </div>
-                    <Button onClick={handleSave} disabled={saving} className="w-full rounded-xl font-semibold mt-1">
-                        {saving ? 'Creating…' : 'Create Wallet'}
-                    </Button>
+        <FinanceDialogShell open={open} onOpenChange={onOpenChange} title="Add Wallet">
+            <div className="space-y-3">
+                <div>
+                    <FormLabel>Name</FormLabel>
+                    <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. BCA Savings" className="rounded-xl text-xs h-9" />
                 </div>
-            </DialogContent>
-        </Dialog>
+                <div>
+                    <FormLabel>Type</FormLabel>
+                    <Select value={type} onValueChange={setType}>
+                        <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            {WALLET_TYPES.map(t => (
+                                <SelectItem key={t} value={t} className="text-xs capitalize">{t}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div>
+                    <FormLabel>Initial Balance (IDR)</FormLabel>
+                    <Input value={balance} onChange={e => setBalance(e.target.value)} type="number" className="rounded-xl text-xs h-9" />
+                </div>
+                <div>
+                    <FormLabel>Color</FormLabel>
+                    <ColorPicker value={color} onChange={setColor} />
+                </div>
+                <Button onClick={handleSave} disabled={saving} className="w-full rounded-xl font-semibold mt-1">
+                    {saving ? 'Creating…' : 'Create Wallet'}
+                </Button>
+            </div>
+        </FinanceDialogShell>
     )
 }
 
@@ -277,34 +305,29 @@ export function AddGoalDialog({ open, onOpenChange, onSave }: AddGoalProps) {
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="rounded-2xl max-w-md">
-                <DialogHeader>
-                    <DialogTitle>New Saving Goal</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-3">
-                    <div>
-                        <FormLabel>Goal Name</FormLabel>
-                        <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Vacation Fund" className="rounded-xl text-xs h-9" />
-                    </div>
-                    <div>
-                        <FormLabel>Target Amount (IDR)</FormLabel>
-                        <Input value={target} onChange={e => setTarget(e.target.value)} type="number" placeholder="5000000" className="rounded-xl text-xs h-9" />
-                    </div>
-                    <div>
-                        <FormLabel>Deadline (optional)</FormLabel>
-                        <Input value={deadline} onChange={e => setDeadline(e.target.value)} type="date" className="rounded-xl text-xs h-9" />
-                    </div>
-                    <div>
-                        <FormLabel>Color</FormLabel>
-                        <ColorPicker value={color} onChange={setColor} />
-                    </div>
-                    <Button onClick={handleSave} disabled={saving} className="w-full rounded-xl font-semibold mt-1">
-                        {saving ? 'Creating…' : 'Create Goal'}
-                    </Button>
+        <FinanceDialogShell open={open} onOpenChange={onOpenChange} title="New Saving Goal">
+            <div className="space-y-3">
+                <div>
+                    <FormLabel>Goal Name</FormLabel>
+                    <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Vacation Fund" className="rounded-xl text-xs h-9" />
                 </div>
-            </DialogContent>
-        </Dialog>
+                <div>
+                    <FormLabel>Target Amount (IDR)</FormLabel>
+                    <Input value={target} onChange={e => setTarget(e.target.value)} type="number" placeholder="5000000" className="rounded-xl text-xs h-9" />
+                </div>
+                <div>
+                    <FormLabel>Deadline (optional)</FormLabel>
+                    <Input value={deadline} onChange={e => setDeadline(e.target.value)} type="date" className="rounded-xl text-xs h-9" />
+                </div>
+                <div>
+                    <FormLabel>Color</FormLabel>
+                    <ColorPicker value={color} onChange={setColor} />
+                </div>
+                <Button onClick={handleSave} disabled={saving} className="w-full rounded-xl font-semibold mt-1">
+                    {saving ? 'Creating…' : 'Create Goal'}
+                </Button>
+            </div>
+        </FinanceDialogShell>
     )
 }
 
@@ -354,48 +377,43 @@ export function AddBudgetDialog({ open, onOpenChange, categories, onSave }: AddB
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="rounded-2xl max-w-md">
-                <DialogHeader>
-                    <DialogTitle>New Budget</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-3">
-                    <div>
-                        <FormLabel>Category</FormLabel>
-                        <Select value={categoryId} onValueChange={setCategoryId}>
-                            <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue placeholder="Expense category" /></SelectTrigger>
-                            <SelectContent>
-                                {categories.map(c => (
-                                    <SelectItem key={c.id} value={c.id} className="text-xs">
-                                        <span className="flex items-center gap-1.5">
-                                            <DynamicIcon name={c.icon} className="size-3" />
-                                            {c.name}
-                                        </span>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <FormLabel>Period</FormLabel>
-                        <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
-                            <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                {(['weekly', 'monthly', 'yearly'] as const).map(p => (
-                                    <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <FormLabel>Budget Amount (IDR)</FormLabel>
-                        <Input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder="1000000" className="rounded-xl text-xs h-9" />
-                    </div>
-                    <Button onClick={handleSave} disabled={saving} className="w-full rounded-xl font-semibold mt-1">
-                        {saving ? 'Creating…' : 'Create Budget'}
-                    </Button>
+        <FinanceDialogShell open={open} onOpenChange={onOpenChange} title="New Budget">
+            <div className="space-y-3">
+                <div>
+                    <FormLabel>Category</FormLabel>
+                    <Select value={categoryId} onValueChange={setCategoryId}>
+                        <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue placeholder="Expense category" /></SelectTrigger>
+                        <SelectContent>
+                            {categories.map(c => (
+                                <SelectItem key={c.id} value={c.id} className="text-xs">
+                                    <span className="flex items-center gap-1.5">
+                                        <DynamicIcon name={c.icon} className="size-3" />
+                                        {c.name}
+                                    </span>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
-            </DialogContent>
-        </Dialog>
+                <div>
+                    <FormLabel>Period</FormLabel>
+                    <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
+                        <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            {(['weekly', 'monthly', 'yearly'] as const).map(p => (
+                                <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div>
+                    <FormLabel>Budget Amount (IDR)</FormLabel>
+                    <Input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder="1000000" className="rounded-xl text-xs h-9" />
+                </div>
+                <Button onClick={handleSave} disabled={saving} className="w-full rounded-xl font-semibold mt-1">
+                    {saving ? 'Creating…' : 'Create Budget'}
+                </Button>
+            </div>
+        </FinanceDialogShell>
     )
 }
