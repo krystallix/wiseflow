@@ -245,8 +245,8 @@ const KanbanColumn = ({ id, title, count, items, colorClass, onTaskClick, onAddT
             <div className="flex items-center justify-between mb-3 px-1.5">
                 <div className="flex items-center gap-2">
                     <div className={cn("w-[4px] h-[16px] rounded-full", colorClass)} />
-                    <h3 className="font-bold text-foreground text-[14px]">{title}</h3>
-                    <div className="flex bg-muted text-muted-foreground min-w-[18px] h-[18px] px-1 items-center justify-center rounded-[4px] font-bold text-[10px] ml-1">
+                    <h3 className="font-bold text-foreground text-sm">{title}</h3>
+                    <div className="flex bg-muted text-muted-foreground min-w-[18px] h-[18px] px-1 items-center justify-center rounded-[4px] font-bold text-2xs ml-1">
                         {count}
                     </div>
                 </div>
@@ -263,7 +263,7 @@ const KanbanColumn = ({ id, title, count, items, colorClass, onTaskClick, onAddT
                         <SortableTask key={item.id} task={item} onTaskClick={onTaskClick} />
                     ))}
                 </SortableContext>
-                <Button onClick={() => onAddTask?.(id)} variant="outline" className="w-full py-5 rounded-xl border-dashed border-border/60 text-muted-foreground flex items-center justify-center gap-1 mt-0.5 hover:bg-muted/50 border-dashed border-2 border-foreground/10 transition-colors text-[12px] font-semibold bg-transparent">
+                <Button onClick={() => onAddTask?.(id)} variant="outline" className="w-full py-5 rounded-xl border-dashed border-border/60 text-muted-foreground flex items-center justify-center gap-1 mt-0.5 hover:bg-muted/50 border-dashed border-2 border-foreground/10 transition-colors text-xs font-semibold bg-transparent">
                     <Plus className="size-[13px]" /> Add new
                 </Button>
             </div>
@@ -329,18 +329,18 @@ const TaskCard = ({ task, onClick }: { task: Task; onClick?: () => void }) => {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex gap-1.5 flex-wrap">
-                    <Badge variant="secondary" className={cn("px-1.5 py-0 h-4 rounded-[4px] text-[9px] hover:bg-transparent border-transparent pointer-events-none flex items-center gap-0.5", priorityColors[task.priority])}>
+                    <Badge variant="secondary" className={cn("px-1.5 py-0 h-4 rounded-[4px] text-3xs hover:bg-transparent border-transparent pointer-events-none flex items-center gap-0.5", priorityColors[task.priority])}>
                         <PriorityIcon className="size-2.5" />
                         {task.priority}
                     </Badge>
                     {task.category && (
-                        <Badge variant="secondary" className={cn("px-1.5 py-0 h-4 rounded-[4px] text-[9px] hover:bg-transparent border-transparent pointer-events-none flex items-center gap-0.5", task.category ? categoryColors[task.category] : '')}>
+                        <Badge variant="secondary" className={cn("px-1.5 py-0 h-4 rounded-[4px] text-3xs hover:bg-transparent border-transparent pointer-events-none flex items-center gap-0.5", task.category ? categoryColors[task.category] : '')}>
                             <Hash className="size-2.5" />
                             {task.category}
                         </Badge>
                     )}
                 </div>
-                <span className="text-[11px] font-semibold text-muted-foreground">{task.tag_id}</span>
+                <span className="text-xs font-semibold text-muted-foreground">{task.tag_id}</span>
             </div>
 
             {/* Cover Image */}
@@ -355,14 +355,14 @@ const TaskCard = ({ task, onClick }: { task: Task; onClick?: () => void }) => {
 
             {/* Title & Description */}
             <div>
-                <h4 className="font-bold text-[13.5px] text-foreground leading-[1.3] mb-1">{task.title}</h4>
-                <p className="text-[11px] text-muted-foreground/80 font-medium tracking-tight leading-snug line-clamp-2">{task.description}</p>
+                <h4 className="font-bold text-sm text-foreground leading-snug mb-1">{task.title}</h4>
+                <p className="text-xs text-muted-foreground/80 font-medium tracking-tight leading-snug line-clamp-2">{task.description}</p>
             </div>
 
             {/* Progress (from subtasks) */}
             {totalSubtasks > 0 && (
                 <div className="mb-3">
-                    <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5">
+                    <div className="flex items-center justify-between text-2xs text-muted-foreground mb-1.5">
                         <span className="font-semibold">Progress</span>
                         <span className="font-bold text-foreground/70">{doneSubtasks}/{totalSubtasks} done</span>
                     </div>
@@ -373,7 +373,7 @@ const TaskCard = ({ task, onClick }: { task: Task; onClick?: () => void }) => {
             {/* Footer */}
             <div className="flex items-center justify-between pt-1">
                 {/* Due date */}
-                <div className="flex items-center gap-1 text-muted-foreground text-[10px] font-semibold">
+                <div className="flex items-center gap-1 text-muted-foreground text-2xs font-semibold">
                     {task.due_date ? (
                         <>
                             <CalendarDays className="size-[11px]" />
@@ -386,10 +386,10 @@ const TaskCard = ({ task, onClick }: { task: Task; onClick?: () => void }) => {
 
                 {/* Comments & attachments */}
                 <div className="flex items-center gap-1.5">
-                    <div className="flex items-center gap-1 text-muted-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-[5px] bg-background border border-border/50">
+                    <div className="flex items-center gap-1 text-muted-foreground text-2xs font-bold px-1.5 py-0.5 rounded-[5px] bg-background border border-border/50">
                         <MessageCircle className="size-[11px]" /> {task.comments_count ?? 0}
                     </div>
-                    <div className="flex items-center gap-1 text-muted-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-[5px] bg-background border border-border/50">
+                    <div className="flex items-center gap-1 text-muted-foreground text-2xs font-bold px-1.5 py-0.5 rounded-[5px] bg-background border border-border/50">
                         <Paperclip className="size-[11px]" /> {task.attachments_count ?? 0}
                     </div>
                 </div>

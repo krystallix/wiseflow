@@ -110,7 +110,7 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
 
                 {/* Count */}
                 <div className="px-2.5 pt-2 pb-1">
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                         {filtered.length} icon{filtered.length !== 1 ? 's' : ''}
                     </p>
                 </div>

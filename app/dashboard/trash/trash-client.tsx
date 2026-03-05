@@ -368,11 +368,11 @@ function ProjectGroupRow({
 
                             {/* Title & Description */}
                             <div className="flex flex-col gap-0.5 h-[38px] justify-center min-w-0 pr-4">
-                                <h4 className={cn("font-semibold text-foreground text-[13px] truncate leading-tight", !t.description && "h-full flex items-center")}>
+                                <h4 className={cn("font-semibold text-foreground text-xs truncate leading-tight", !t.description && "h-full flex items-center")}>
                                     {t.title}
                                 </h4>
                                 {t.description && (
-                                    <p className="text-[11px] text-muted-foreground truncate font-medium leading-tight">
+                                    <p className="text-2xs text-muted-foreground truncate font-medium leading-tight">
                                         {t.description}
                                     </p>
                                 )}
@@ -381,18 +381,18 @@ function ProjectGroupRow({
                             {/* Category */}
                             <div className="flex items-center">
                                 {categoryLabel ? (
-                                    <Badge variant="secondary" className={cn("rounded-md font-semibold px-2 py-0.5 text-[11px] border-transparent transition-colors flex items-center gap-1 w-fit", category.style)}>
+                                    <Badge variant="secondary" className={cn("rounded-md font-semibold px-2 py-0.5 text-xs border-transparent transition-colors flex items-center gap-1 w-fit", category.style)}>
                                         <Hash className="size-2.5 shrink-0" />
                                         {categoryLabel}
                                     </Badge>
                                 ) : (
-                                    <span className="text-[11px] text-muted-foreground/40">—</span>
+                                    <span className="text-xs text-muted-foreground/40">—</span>
                                 )}
                             </div>
 
                             {/* Priority */}
                             <div className="flex items-center">
-                                <Badge variant="secondary" className={cn("rounded-md font-semibold px-2 py-0.5 text-[11px] border-transparent transition-colors flex items-center gap-1 w-fit", priority.style)}>
+                                <Badge variant="secondary" className={cn("rounded-md font-semibold px-2 py-0.5 text-xs border-transparent transition-colors flex items-center gap-1 w-fit", priority.style)}>
                                     <PriorityIcon className="size-3 shrink-0" />
                                     {priorityLabel}
                                 </Badge>
@@ -400,7 +400,7 @@ function ProjectGroupRow({
 
                             {/* Status */}
                             <div className="flex items-center">
-                                <Badge variant="secondary" className={cn("rounded-md font-semibold px-2 py-0.5 text-[11px] border-transparent transition-colors flex items-center gap-1 w-fit", status.style)}>
+                                <Badge variant="secondary" className={cn("rounded-md font-semibold px-2 py-0.5 text-xs border-transparent transition-colors flex items-center gap-1 w-fit", status.style)}>
                                     <StatusIcon className="size-3 shrink-0" />
                                     {status.label}
                                 </Badge>
@@ -412,22 +412,22 @@ function ProjectGroupRow({
                                     <div className="flex items-center gap-2 w-full max-w-[120px]">
                                         <CheckSquare className="size-3.5 text-primary shrink-0" />
                                         <Progress value={(doneSubtasks / totalSubtasks) * 100} className="h-1 flex-1" />
-                                        <span className="text-[10px] font-semibold text-muted-foreground w-6 text-right shrink-0">{doneSubtasks}/{totalSubtasks}</span>
+                                        <span className="text-2xs font-semibold text-muted-foreground w-6 text-right shrink-0">{doneSubtasks}/{totalSubtasks}</span>
                                     </div>
                                 ) : (
-                                    <span className="text-[11px] text-muted-foreground/40">—</span>
+                                    <span className="text-xs text-muted-foreground/40">—</span>
                                 )}
                             </div>
 
                             {/* Due Date */}
                             <div className="flex items-center">
                                 {t.due_date ? (
-                                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground truncate">
+                                    <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground truncate">
                                         <CalendarDays className="size-3.5 shrink-0" />
                                         {new Date(t.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                     </div>
                                 ) : (
-                                    <span className="text-[11px] text-muted-foreground/40">—</span>
+                                    <span className="text-xs text-muted-foreground/40">—</span>
                                 )}
                             </div>
                         </div>

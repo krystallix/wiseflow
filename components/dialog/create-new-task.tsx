@@ -355,7 +355,7 @@ export default function CreateNewTask({
                                             <X className="size-3 mr-1" /> Remove
                                         </Button>
                                     </div>
-                                    <span className="absolute bottom-2 left-2 text-[10px] text-white/80 bg-black/50 px-1.5 py-0.5 rounded font-medium truncate max-w-[80%]">
+                                    <span className="absolute bottom-2 left-2 text-2xs text-white/80 bg-black/50 px-1.5 py-0.5 rounded font-medium truncate max-w-[80%]">
                                         {coverFile?.name}
                                     </span>
                                 </div>
@@ -384,7 +384,7 @@ export default function CreateNewTask({
                                     <span className="text-xs font-medium">
                                         {isDragOver ? 'Drop to upload' : 'Click or drag image here'}
                                     </span>
-                                    <span className="text-[10px] text-muted-foreground/60">PNG, JPG, WEBP · max 5MB</span>
+                                    <span className="text-2xs text-muted-foreground/60">PNG, JPG, WEBP · max 5MB</span>
                                 </button>
                             )}
                             <input
@@ -533,7 +533,7 @@ export default function CreateNewTask({
                             <div className="flex items-center justify-between mb-2">
                                 <FieldLabel icon={ListChecks}>Sub Tasks</FieldLabel>
                                 {subtasks.length > 0 && (
-                                    <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+                                    <Badge variant="secondary" className="text-2xs h-5 px-1.5">
                                         {doneCount}/{subtasks.length} done
                                     </Badge>
                                 )}

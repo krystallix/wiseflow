@@ -94,14 +94,14 @@ export const columns: ColumnDef<SupabaseTask>[] = [
                 <div className="flex flex-col gap-0.5 py-0.5 w-[28%] min-w-[200px] h-[38px] justify-center">
                     <div className={cn("flex items-center gap-2", !task.description && "h-full")}>
                         {task.tag_id && (
-                            <Badge variant="outline" className="px-1.5 py-0 h-[16px] text-[8.5px] text-muted-foreground font-semibold border-border/60 uppercase shrink-0">
+                            <Badge variant="outline" className="px-1.5 py-0 h-4 text-3xs text-muted-foreground font-semibold border-border/60 uppercase shrink-0">
                                 {task.tag_id}
                             </Badge>
                         )}
-                        <h4 className="font-semibold text-foreground text-[13px] truncate max-w-[220px] leading-tight">{task.title}</h4>
+                        <h4 className="font-semibold text-foreground text-xs truncate max-w-[220px] leading-tight">{task.title}</h4>
                     </div>
                     {task.description && (
-                        <p className="text-[11px] text-muted-foreground truncate max-w-[260px] font-medium leading-tight">
+                        <p className="text-2xs text-muted-foreground truncate max-w-[260px] font-medium leading-tight">
                             {task.description}
                         </p>
                     )}
@@ -128,12 +128,12 @@ export const columns: ColumnDef<SupabaseTask>[] = [
             const categoryLabel = row.original.category ?? '';
             const category = categoryConfig[categoryLabel] ?? { style: '' };
             return categoryLabel ? (
-                <Badge variant="secondary" className={cn("rounded-md font-semibold px-2 py-0.5 text-[11px] border-transparent transition-colors flex items-center gap-1 w-fit", category.style)}>
+                <Badge variant="secondary" className={cn("rounded-md font-semibold px-2 py-0.5 text-xs border-transparent transition-colors flex items-center gap-1 w-fit", category.style)}>
                     <Hash className="size-2.5 shrink-0" />
                     {categoryLabel}
                 </Badge>
             ) : (
-                <span className="text-[11px] text-muted-foreground/40">—</span>
+                <span className="text-xs text-muted-foreground/40">—</span>
             );
         }
     },
@@ -157,7 +157,7 @@ export const columns: ColumnDef<SupabaseTask>[] = [
             const priority = priorityConfig[priorityLabel] ?? priorityConfig['Low'];
             const PriorityIcon = priority.icon;
             return (
-                <Badge variant="secondary" className={cn("rounded-md font-semibold px-2 py-0.5 text-[11px] border-transparent transition-colors flex items-center gap-1 w-fit", priority.style)}>
+                <Badge variant="secondary" className={cn("rounded-md font-semibold px-2 py-0.5 text-xs border-transparent transition-colors flex items-center gap-1 w-fit", priority.style)}>
                     <PriorityIcon className="size-3 shrink-0" />
                     {priorityLabel}
                 </Badge>
@@ -184,7 +184,7 @@ export const columns: ColumnDef<SupabaseTask>[] = [
             const status = statusConfig[statusValue] ?? statusConfig['todo'];
             const StatusIcon = status.icon;
             return (
-                <Badge variant="secondary" className={cn("rounded-md font-semibold px-2 py-0.5 text-[11px] border-transparent transition-colors flex items-center gap-1 w-fit", status.style)}>
+                <Badge variant="secondary" className={cn("rounded-md font-semibold px-2 py-0.5 text-xs border-transparent transition-colors flex items-center gap-1 w-fit", status.style)}>
                     <StatusIcon className="size-3 shrink-0" />
                     {status.label}
                 </Badge>
@@ -216,10 +216,10 @@ export const columns: ColumnDef<SupabaseTask>[] = [
                 <div className="flex items-center gap-2">
                     <CheckSquare className="size-3.5 text-primary shrink-0" />
                     <Progress value={(doneSubtasks / totalSubtasks) * 100} className="h-1" />
-                    <span className="text-[10px] font-semibold text-muted-foreground">{doneSubtasks}/{totalSubtasks}</span>
+                    <span className="text-2xs font-semibold text-muted-foreground">{doneSubtasks}/{totalSubtasks}</span>
                 </div>
             ) : (
-                <span className="text-[11px] text-muted-foreground/40">—</span>
+                <span className="text-xs text-muted-foreground/40">—</span>
             );
         }
     },
@@ -241,12 +241,12 @@ export const columns: ColumnDef<SupabaseTask>[] = [
         cell: ({ row }) => {
             const dateStr = row.original.due_date;
             return dateStr ? (
-                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                     <CalendarDays className="size-3.5 shrink-0" />
                     {new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </div>
             ) : (
-                <span className="text-[11px] text-muted-foreground/40">—</span>
+                <span className="text-xs text-muted-foreground/40">—</span>
             );
         }
     }

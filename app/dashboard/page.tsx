@@ -49,7 +49,7 @@ export default function Page() {
             <div className="p-2 bg-primary/10 rounded-xl text-primary"><Target className="size-4" /></div>
           </div>
           <div className="mt-4">
-            <div className="flex justify-between text-[11px] mb-2 font-semibold">
+            <div className="flex justify-between text-xs mb-2 font-semibold">
               <span className="text-foreground">84%</span>
               <span className="text-muted-foreground">100%</span>
             </div>
@@ -73,14 +73,14 @@ export default function Page() {
               <div className="p-1.5 bg-chart-1/20 text-chart-1 rounded-lg"><Folder className="size-3.5" /></div>
               <div className="flex-1">
                 <p className="text-xs font-semibold text-foreground">Landing Page V2</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Updated 2h ago</p>
+                <p className="text-2xs text-muted-foreground mt-0.5">Updated 2h ago</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="p-1.5 bg-chart-2/20 text-chart-2 rounded-lg"><Folder className="size-3.5" /></div>
               <div className="flex-1">
                 <p className="text-xs font-semibold text-foreground">Mobile App UI</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Updated 5h ago</p>
+                <p className="text-2xs text-muted-foreground mt-0.5">Updated 5h ago</p>
               </div>
             </div>
           </div>
@@ -101,7 +101,7 @@ export default function Page() {
                 <div key={idx} className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-[3px] ${colorClass}`}></div>
               ))}
             </div>
-            <div className="flex justify-between text-[10px] text-muted-foreground mt-2 font-medium w-full min-w-[300px]">
+            <div className="flex justify-between text-2xs text-muted-foreground mt-2 font-medium w-full min-w-[300px]">
               <span>Mon</span>
               <span>Wed</span>
               <span>Fri</span>
@@ -128,7 +128,7 @@ export default function Page() {
           <div className="flex-1 overflow-auto space-y-3 pr-1 mt-2">
             <div className="bg-card rounded-xl rounded-tl-sm p-3 shadow-sm max-w-[90%] border-transparent">
               <p className="text-xs leading-relaxed text-foreground">Hi there! I'm a virtual assistant.<br />How can I help you today?</p>
-              <span className="text-[9px] text-muted-foreground block text-right mt-1.5 font-medium">9:32</span>
+              <span className="text-3xs text-muted-foreground block text-right mt-1.5 font-medium">9:32</span>
             </div>
           </div>
           <div className="mt-4 relative">
@@ -154,7 +154,7 @@ export default function Page() {
 
           <div className="relative flex-1 min-w-[400px] w-full mt-2">
             {/* Timeline markers */}
-            <div className="flex justify-between text-[10px] font-semibold text-muted-foreground mb-3 pr-2">
+            <div className="flex justify-between text-2xs font-semibold text-muted-foreground mb-3 pr-2">
               <span>08:00</span>
               <span>09:00</span>
               <span>10:00</span>
@@ -181,7 +181,7 @@ export default function Page() {
               <div className="absolute top-1 left-[5%] w-[35%] bg-chart-3 text-background rounded-xl p-2 flex justify-between items-center z-10 border-transparent shadow-sm">
                 <div>
                   <h4 className="font-semibold text-xs">Project onboarding</h4>
-                  <p className="text-[9px] opacity-90 mt-0.5">Google Meet</p>
+                  <p className="text-3xs opacity-90 mt-0.5">Google Meet</p>
                 </div>
                 <Avatar className="size-6 border-2 border-chart-3"><AvatarImage src="https://github.com/shadcn.png" /></Avatar>
               </div>
@@ -190,9 +190,9 @@ export default function Page() {
               <div className="absolute top-14 left-[40%] w-[40%] bg-muted rounded-xl p-2 flex justify-between items-center z-10 border-transparent shadow-sm">
                 <div>
                   <h4 className="font-semibold text-xs text-foreground">Design research</h4>
-                  <p className="text-[9px] text-muted-foreground mt-0.5">Figma file</p>
+                  <p className="text-3xs text-muted-foreground mt-0.5">Figma file</p>
                 </div>
-                <div className="size-6 rounded-full border-2 border-muted bg-foreground text-background flex items-center justify-center text-[8px] font-bold">+5</div>
+                <div className="size-6 rounded-full border-2 border-muted bg-foreground text-background flex items-center justify-center text-3xs font-bold">+5</div>
               </div>
 
               {/* Event 3 */}
@@ -221,17 +221,17 @@ export default function Page() {
             <div className="flex justify-between items-start">
               <div>
                 <h4 className="font-bold text-foreground line-through decoration-muted-foreground/50 text-xs">Client Review</h4>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Landing page reskin</p>
+                <p className="text-2xs text-muted-foreground mt-0.5">Landing page reskin</p>
               </div>
               <div className="rounded-full bg-chart-1/20 p-1 flex items-center justify-center size-5">
                 <Check className="size-3 text-chart-1" strokeWidth={3} />
               </div>
             </div>
-            <div className="mt-4 flex justify-between items-center text-[9px] text-muted-foreground font-semibold border-t border-border/50 pt-3">
+            <div className="mt-4 flex justify-between items-center text-3xs text-muted-foreground font-semibold border-t border-border/50 pt-3">
               <span>Today 10:00 PM</span>
               <div className="flex -space-x-1.5">
                 <Avatar className="size-5 border-2 border-card"><AvatarImage src="https://github.com/shadcn.png" /></Avatar>
-                <Avatar className="size-5 border-2 border-card"><AvatarFallback className="bg-primary text-primary-foreground text-[7px]">IN</AvatarFallback></Avatar>
+                <Avatar className="size-5 border-2 border-card"><AvatarFallback className="bg-primary text-primary-foreground text-3xs">IN</AvatarFallback></Avatar>
               </div>
             </div>
           </div>
@@ -255,9 +255,9 @@ export default function Page() {
             {/* Chart Background Grid */}
             <div className="absolute inset-0 flex flex-col justify-between pt-2 pb-1 z-0">
               <div className="w-full border-t border-border/40"></div>
-              <div className="w-full border-t border-border/40 relative"><span className="absolute -top-2.5 bg-card pr-1.5 text-[10px] font-semibold text-muted-foreground">300</span></div>
-              <div className="w-full border-t border-border/40 relative"><span className="absolute -top-2.5 bg-card pr-1.5 text-[10px] font-semibold text-muted-foreground">200</span></div>
-              <div className="w-full border-t border-border/40 relative"><span className="absolute -top-2.5 bg-card pr-1.5 text-[10px] font-semibold text-muted-foreground">100</span></div>
+              <div className="w-full border-t border-border/40 relative"><span className="absolute -top-2.5 bg-card pr-1.5 text-2xs font-semibold text-muted-foreground">300</span></div>
+              <div className="w-full border-t border-border/40 relative"><span className="absolute -top-2.5 bg-card pr-1.5 text-2xs font-semibold text-muted-foreground">200</span></div>
+              <div className="w-full border-t border-border/40 relative"><span className="absolute -top-2.5 bg-card pr-1.5 text-2xs font-semibold text-muted-foreground">100</span></div>
             </div>
 
             {/* SVG Chart Line Dummy */}
@@ -269,7 +269,7 @@ export default function Page() {
             </svg>
 
             {/* Chart Tooltip popup matching image */}
-            <div className="absolute top-[12%] left-[68%] transform -translate-x-1/2 p-1 px-2 bg-foreground text-background text-[10px] font-bold rounded-md shadow-md z-20">
+            <div className="absolute top-[12%] left-[68%] transform -translate-x-1/2 p-1 px-2 bg-foreground text-background text-2xs font-bold rounded-md shadow-md z-20">
               203
             </div>
           </div>

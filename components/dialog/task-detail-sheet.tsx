@@ -115,7 +115,7 @@ function PropRow({
         <div className="flex items-start gap-4 py-2 border-b border-border/30 last:border-0">
             <div className="flex items-center gap-2.5 w-[140px] shrink-0 text-muted-foreground">
                 <Icon className="size-4 shrink-0" />
-                <span className="text-[13px] font-medium">{label}</span>
+                <span className="text-xs font-medium">{label}</span>
             </div>
             <div className="flex-1 min-w-0 flex items-center flex-wrap gap-1.5">
                 {children}
@@ -370,7 +370,7 @@ export default function TaskDetailSheet({
                     <div className="flex flex-col ">
                         {/* Created */}
                         <PropRow icon={Clock} label="Created time">
-                            <span className="text-[13.5px] text-foreground/80 font-normal">
+                            <span className="text-sm text-foreground/80 font-normal">
                                 {formatDateTime(liveTask.created_at)}
                             </span>
                         </PropRow>
@@ -378,7 +378,7 @@ export default function TaskDetailSheet({
                         {/* Status */}
                         <PropRow icon={Zap} label="Status">
                             <span className={cn(
-                                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold',
+                                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold',
                                 STATUS_PILL[liveTask.status]
                             )}>
                                 <span className={cn('size-1.5 rounded-full shrink-0', STATUS_DOT[liveTask.status])} />
@@ -389,7 +389,7 @@ export default function TaskDetailSheet({
                         {/* Priority */}
                         <PropRow icon={PriorityIcon} label="Priority">
                             <span className={cn(
-                                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold',
+                                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold',
                                 PRIORITY_PILL[liveTask.priority]
                             )}>
                                 <PriorityIcon className="size-3 shrink-0" />
@@ -400,11 +400,11 @@ export default function TaskDetailSheet({
                         {/* Due Date */}
                         <PropRow icon={CalendarDays} label="Due Date">
                             {liveTask.due_date ? (
-                                <span className="text-[13.5px] text-foreground/80 font-normal">
+                                <span className="text-sm text-foreground/80 font-normal">
                                     {formatDateLong(liveTask.due_date)}
                                 </span>
                             ) : (
-                                <span className="text-[13px] text-muted-foreground/40">Not set</span>
+                                <span className="text-xs text-muted-foreground/40">Not set</span>
                             )}
                         </PropRow>
 
@@ -412,7 +412,7 @@ export default function TaskDetailSheet({
                         {liveTask.category && (
                             <PropRow icon={Tag} label="Tags">
                                 {liveTask.category.split(',').map(t => t.trim()).filter(Boolean).map(t => (
-                                    <span key={t} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-border/60 text-[12px] font-medium text-muted-foreground bg-muted/20">
+                                    <span key={t} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-border/60 text-xs font-medium text-muted-foreground bg-muted/20">
                                         {t}
                                     </span>
                                 ))}
@@ -425,7 +425,7 @@ export default function TaskDetailSheet({
                                 <div className="flex-1 flex flex-col gap-2 w-full">
                                     <div className="flex items-center gap-2">
                                         <Progress value={progress} className="flex-1 h-[3px]" />
-                                        <span className="text-[11px] text-muted-foreground font-semibold shrink-0">
+                                        <span className="text-xs text-muted-foreground font-semibold shrink-0">
                                             {doneSubtasks}/{totalSubtasks}
                                         </span>
                                     </div>
@@ -441,7 +441,7 @@ export default function TaskDetailSheet({
                                                         : <Circle className="size-4 text-muted-foreground/30 group-hover/sub:text-primary/50 transition-colors" />
                                                     }
                                                 </button>
-                                                <span className={cn('text-[13px] transition-colors', sub.is_done && 'line-through text-muted-foreground')}>
+                                                <span className={cn('text-xs transition-colors', sub.is_done && 'line-through text-muted-foreground')}>
                                                     {sub.title}
                                                 </span>
                                             </li>
@@ -462,14 +462,14 @@ export default function TaskDetailSheet({
                                     <MessageCircle className="size-3.5 mr-1" />
                                     Comments
                                     {comments.length > 0 && (
-                                        <span className="bg-muted rounded-full px-1.5 ml-1.5 text-[10px] font-bold text-muted-foreground">{comments.length}</span>
+                                        <span className="bg-muted rounded-full px-1.5 ml-1.5 text-2xs font-bold text-muted-foreground">{comments.length}</span>
                                     )}
                                 </TabsTrigger>
                                 <TabsTrigger value="attachments" className="text-xs px-4">
                                     <Paperclip className="size-3.5 mr-1" />
                                     Attachments
                                     {attachments.length > 0 && (
-                                        <span className="bg-muted rounded-full px-1.5 ml-1.5 text-[10px] font-bold text-muted-foreground">{attachments.length}</span>
+                                        <span className="bg-muted rounded-full px-1.5 ml-1.5 text-2xs font-bold text-muted-foreground">{attachments.length}</span>
                                     )}
                                 </TabsTrigger>
                             </TabsList>
@@ -523,11 +523,11 @@ export default function TaskDetailSheet({
                                         {comments.map(c => (
                                             <li key={c.id} className="group flex flex-col gap-1 bg-muted/30 rounded-xl px-3.5 py-3 border border-border/30">
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-[11.5px] font-semibold text-foreground">
+                                                    <span className="text-xs font-semibold text-foreground">
                                                         {c.user_id.slice(0, 8)}…
                                                     </span>
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] text-muted-foreground">{formatDateLong(c.created_at)}</span>
+                                                        <span className="text-2xs text-muted-foreground">{formatDateLong(c.created_at)}</span>
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
@@ -598,8 +598,8 @@ export default function TaskDetailSheet({
                                                     <img src={a.file_url} alt={a.file_name} className="h-9 w-9 object-cover rounded-md border border-border/30 shrink-0" />
                                                 )}
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[12.5px] font-semibold text-foreground truncate">{a.file_name}</p>
-                                                    <p className="text-[10.5px] text-muted-foreground">
+                                                    <p className="text-xs font-semibold text-foreground truncate">{a.file_name}</p>
+                                                    <p className="text-2xs text-muted-foreground">
                                                         {a.file_size ? formatBytes(a.file_size) : '—'} · {formatDateLong(a.created_at)}
                                                     </p>
                                                 </div>
@@ -610,7 +610,7 @@ export default function TaskDetailSheet({
                                                         rel="noopener noreferrer"
                                                         download={a.file_name}
                                                         onClick={e => e.stopPropagation()}
-                                                        className="text-[10.5px] text-muted-foreground hover:text-foreground font-medium px-2 py-1 rounded hover:bg-muted transition-colors"
+                                                        className="text-2xs text-muted-foreground hover:text-foreground font-medium px-2 py-1 rounded hover:bg-muted transition-colors"
                                                     >
                                                         Download
                                                     </a>
