@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2Icon, Save, Plus, Wallet, Target, PiggyBank, Pencil, HandCoins, UserPlus } from 'lucide-react'
+import { Loader2Icon, Save, Plus, Wallet, Target, PiggyBank, Pencil, HandCoins, UserPlus, Tags, BadgeDollarSign } from 'lucide-react'
 import { toast } from 'sonner'
 import { DynamicIcon } from '@/lib/dynamic-icon'
 import { Button } from '@/components/ui/button'
@@ -29,6 +29,8 @@ import {
     createDebt,
     createContact,
     getContacts,
+    createCategory,
+    addDebtPayment,
 } from '@/lib/supabase/finance'
 
 // ─── Shared ───────────────────────────────────────────────────────────────────
@@ -912,6 +914,281 @@ export function AddDebtDialog({ open, onOpenChange, wallets, onSave }: AddDebtPr
                                 : <HandCoins className="size-3.5" />
                             }
                             {direction === 'payable' ? 'Record Debt' : 'Record Loan'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+// ─── Add Category Dialog ──────────────────────────────────────────────────────
+
+const CATEGORY_COLORS = [
+    '#786BEE', '#E2A9F3', '#94C3F6', '#34D399',
+    '#F59E0B', '#F87171', '#60A5FA', '#FB923C',
+]
+const CATEGORY_ICONS = [
+    'ShoppingCart', 'Utensils', 'Car', 'Home', 'Zap',
+    'Wifi', 'Heart', 'GraduationCap', 'Plane', 'Gift',
+    'Coffee', 'Music', 'Dumbbell', 'Dog', 'Briefcase',
+    'TrendingUp', 'DollarSign', 'Shirt', 'Baby', 'Monitor',
+]
+
+type AddCategoryProps = {
+    open: boolean
+    onOpenChange: (o: boolean) => void
+    onSave: () => void
+}
+
+export function AddCategoryDialog({ open, onOpenChange, onSave }: AddCategoryProps) {
+    const [name, setName] = useState('')
+    const [type, setType] = useState<'income' | 'expense'>('expense')
+    const [icon, setIcon] = useState(CATEGORY_ICONS[0])
+    const [color, setColor] = useState(CATEGORY_COLORS[0])
+    const [loading, setLoading] = useState(false)
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!name.trim()) { toast.error('Enter category name'); return }
+        setLoading(true)
+        try {
+            await createCategory({ name: name.trim(), type, icon, color })
+            toast.success('Category created')
+            setName(''); setIcon(CATEGORY_ICONS[0]); setColor(CATEGORY_COLORS[0])
+            onSave()
+            onOpenChange(false)
+        } catch (err: any) {
+            toast.error(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md" transition={DIALOG_TRANSITION}>
+                <DialogHeader>
+                    <DialogTitle className="text-base font-semibold">New Category</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        Add a custom category for income or expense transactions.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+                    {/* Type toggle */}
+                    <div className="flex gap-1 bg-muted p-1 rounded-xl">
+                        {(['expense', 'income'] as const).map(t => (
+                            <button
+                                key={t}
+                                type="button"
+                                onClick={() => setType(t)}
+                                className={`flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${type === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                            >
+                                {t === 'expense' ? '💸 Expense' : '💰 Income'}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Name */}
+                    <div className="space-y-1.5">
+                        <Label htmlFor="cat-name" className="text-xs font-medium">Category name</Label>
+                        <Input
+                            id="cat-name"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            placeholder="e.g. Groceries"
+                            autoFocus
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    {/* Icon picker */}
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-medium">Icon</Label>
+                        <div className="flex flex-wrap gap-1.5">
+                            {CATEGORY_ICONS.map(i => (
+                                <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => setIcon(i)}
+                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all text-foreground ${icon === i ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted hover:bg-muted/80'}`}
+                                >
+                                    <DynamicIcon name={i} className="size-3.5" />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Color picker */}
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-medium">Color</Label>
+                        <div className="flex gap-2 flex-wrap">
+                            {CATEGORY_COLORS.map(c => (
+                                <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => setColor(c)}
+                                    className={`w-7 h-7 rounded-lg transition-all ${color === c ? 'ring-2 ring-offset-2 ring-primary scale-110' : ''}`}
+                                    style={{ background: c }}
+                                />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Preview */}
+                    <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-xl">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: color + '33' }}>
+                            <span style={{ color }}><DynamicIcon name={icon} className="size-3.5" /></span>
+                        </div>
+                        <span className="text-xs font-semibold">{name || 'Preview'}</span>
+                        <span className="text-[10px] text-muted-foreground ml-auto capitalize">{type}</span>
+                    </div>
+
+                    <DialogFooter className="pt-1">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={loading}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" size="sm" disabled={!name.trim() || loading}>
+                            {loading
+                                ? <Loader2Icon className="size-3.5 animate-spin" />
+                                : <Tags className="size-3.5" />
+                            }
+                            Create Category
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+// ─── Record Debt Payment Dialog ───────────────────────────────────────────────
+
+type RecordPaymentProps = {
+    open: boolean
+    onOpenChange: (o: boolean) => void
+    debt: { id: string; contact_name: string; remaining: number; direction: string }
+    wallets: WalletType[]
+    onSave: () => void
+}
+
+export function RecordPaymentDialog({ open, onOpenChange, debt, wallets, onSave }: RecordPaymentProps) {
+    const [amount, setAmount] = useState('')
+    const [walletId, setWalletId] = useState(wallets.find(w => w.is_default)?.id ?? wallets[0]?.id ?? '__none__')
+    const [paidAt, setPaidAt] = useState(new Date().toISOString().split('T')[0])
+    const [note, setNote] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        const n = parseFloat(amount)
+        if (isNaN(n) || n <= 0) { toast.error('Enter valid amount'); return }
+        if (n > debt.remaining) { toast.error(`Max payable is ${debt.remaining.toLocaleString('id-ID')}`); return }
+        setLoading(true)
+        try {
+            await addDebtPayment({
+                debt_id: debt.id,
+                wallet_id: walletId === '__none__' ? null : walletId,
+                amount: n,
+                paid_at: paidAt,
+                note: note.trim() || null,
+            })
+            toast.success('Payment recorded')
+            setAmount(''); setNote('')
+            onSave()
+            onOpenChange(false)
+        } catch (err: any) {
+            toast.error(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-sm" transition={DIALOG_TRANSITION}>
+                <DialogHeader>
+                    <DialogTitle className="text-base font-semibold">Record Payment</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        {debt.direction === 'payable' ? 'Record payment to' : 'Record receipt from'}{' '}
+                        <span className="font-semibold text-foreground">{debt.contact_name}</span>
+                        {' '}· Remaining:{' '}
+                        <span className="font-semibold text-foreground">
+                            {debt.remaining.toLocaleString('id-ID')}
+                        </span>
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="pay-amount" className="text-xs font-medium">Amount (IDR)</Label>
+                        <Input
+                            id="pay-amount"
+                            value={amount}
+                            onChange={e => setAmount(e.target.value)}
+                            type="number"
+                            placeholder="0"
+                            className="text-lg font-bold"
+                            autoFocus
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    {wallets.length > 0 && (
+                        <div className="space-y-1.5">
+                            <Label htmlFor="pay-wallet" className="text-xs font-medium">
+                                {debt.direction === 'payable' ? 'Pay from wallet' : 'Receive to wallet'} (optional)
+                            </Label>
+                            <Select value={walletId} onValueChange={setWalletId} disabled={loading}>
+                                <SelectTrigger id="pay-wallet" className="text-xs w-full">
+                                    <SelectValue placeholder="None" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="__none__" className="text-xs text-muted-foreground">None</SelectItem>
+                                    {wallets.map(w => (
+                                        <SelectItem key={w.id} value={w.id} className="text-xs">{w.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="pay-date" className="text-xs font-medium">Date</Label>
+                        <Input
+                            id="pay-date"
+                            value={paidAt}
+                            onChange={e => setPaidAt(e.target.value)}
+                            type="date"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="pay-note" className="text-xs font-medium">Note (optional)</Label>
+                        <Input
+                            id="pay-note"
+                            value={note}
+                            onChange={e => setNote(e.target.value)}
+                            placeholder="e.g. Partial payment"
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <DialogFooter className="pt-1">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={loading}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" size="sm" disabled={!amount || loading}>
+                            {loading
+                                ? <Loader2Icon className="size-3.5 animate-spin" />
+                                : <BadgeDollarSign className="size-3.5" />
+                            }
+                            Record Payment
                         </Button>
                     </DialogFooter>
                 </form>

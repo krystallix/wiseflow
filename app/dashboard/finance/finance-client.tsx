@@ -5,7 +5,7 @@ import {
     Wallet, TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownLeft,
     ArrowLeftRight, Target, CreditCard, PiggyBank,
     Trash2, CheckCircle2, Clock, AlertCircle, X,
-    DollarSign, BarChart3, Banknote, Receipt, Filter, Pencil,
+    DollarSign, BarChart3, Banknote, Receipt, Filter, Pencil, BadgeDollarSign, Tags,
 } from 'lucide-react'
 import { DynamicIcon } from '@/lib/dynamic-icon'
 import { Button } from '@/components/ui/button'
@@ -31,7 +31,9 @@ import {
     AddGoalDialog,
     AddBudgetDialog,
     AddDebtDialog,
+    AddCategoryDialog,
     EditWalletDialog,
+    RecordPaymentDialog,
 } from '@/components/finance/dialogs'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -55,6 +57,8 @@ export default function FinanceClient() {
     const [openWallet, setOpenWallet] = useState(false)
     const [openGoal, setOpenGoal] = useState(false)
     const [openDebt, setOpenDebt] = useState(false)
+    const [openCategory, setOpenCategory] = useState(false)
+    const [payDebt, setPayDebt] = useState<Debt | null>(null)
     const [editWallet, setEditWallet] = useState<WalletType | null>(null)
 
     const fetchAll = useCallback(async () => {
@@ -90,6 +94,9 @@ export default function FinanceClient() {
                 <div className="flex gap-2">
                     <Button onClick={() => setOpenWallet(true)} variant="outline" size="sm" className="rounded-xl gap-1.5 text-xs font-semibold">
                         <Wallet className="size-3.5" /> Add Wallet
+                    </Button>
+                    <Button onClick={() => setOpenCategory(true)} variant="outline" size="sm" className="rounded-xl gap-1.5 text-xs font-semibold">
+                        <Tags className="size-3.5" /> Category
                     </Button>
                     <Button onClick={() => setOpenTx(true)} size="sm" className="rounded-xl gap-1.5 text-xs font-semibold">
                         <Plus className="size-3.5" /> Transaction
@@ -169,7 +176,7 @@ export default function FinanceClient() {
                     </TabsContent>
 
                     <TabsContent value="debts">
-                        <DebtsPanel debts={debts} onRefresh={fetchAll} onAdd={() => setOpenDebt(true)} />
+                        <DebtsPanel debts={debts} onRefresh={fetchAll} onAdd={() => setOpenDebt(true)} onPay={setPayDebt} />
                     </TabsContent>
                 </TabsContents>
             </Tabs>
@@ -225,6 +232,27 @@ export default function FinanceClient() {
                 wallets={wallets}
                 onSave={fetchAll}
             />
+
+            <AddCategoryDialog
+                open={openCategory}
+                onOpenChange={setOpenCategory}
+                onSave={fetchAll}
+            />
+
+            {payDebt && (
+                <RecordPaymentDialog
+                    open={!!payDebt}
+                    onOpenChange={(o) => { if (!o) setPayDebt(null) }}
+                    debt={{
+                        id: payDebt.id,
+                        contact_name: payDebt.contact?.name ?? 'Unknown',
+                        remaining: payDebt.principal - payDebt.paid_amount,
+                        direction: payDebt.direction,
+                    }}
+                    wallets={wallets}
+                    onSave={() => { setPayDebt(null); fetchAll() }}
+                />
+            )}
         </div>
     )
 }
@@ -421,13 +449,32 @@ function TransactionRow({ tx, onDelete }: { tx: Transaction; onDelete?: (id: str
 
     return (
         <div className="flex items-center gap-3 py-2 group">
+            {/* Type icon */}
             <div className={`p-2 rounded-xl ${bg[tx.type]} flex-shrink-0`}>{icons[tx.type]}</div>
+
+            {/* Info */}
             <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold truncate">{tx.note || tx.category?.name || tx.type}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{tx.wallet?.name} · {tx.date}</p>
+                {/* Title: note > category name > type */}
+                <p className="text-xs font-semibold truncate">{tx.note || tx.type}</p>
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    {/* Category badge */}
+                    {tx.category && (
+                        <span
+                            className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md"
+                            style={{ background: (tx.category.color ?? '#786BEE') + '22', color: tx.category.color ?? '#786BEE' }}
+                        >
+                            <DynamicIcon name={tx.category.icon ?? ''} className="size-2.5" />
+                            {tx.category.name}
+                        </span>
+                    )}
+                    {/* Wallet + date */}
+                    <span className="text-[10px] text-muted-foreground">{tx.wallet?.name} · {tx.date}</span>
+                </div>
             </div>
+
+            {/* Amount + delete */}
             <div className="flex items-center gap-2">
-                <p className={`text-sm font-bold ${amtColor[tx.type]}`}>{prefix}{fmt(tx.amount, tx.wallet?.currency)}</p>
+                <p className={`text-sm font-bold tabular-nums ${amtColor[tx.type]}`}>{prefix}{fmt(tx.amount, tx.wallet?.currency)}</p>
                 {onDelete && (
                     <button
                         onClick={() => onDelete(tx.id)}
@@ -697,7 +744,7 @@ function GoalCard({ goal, onUpdate, onDelete }: {
 
 // ─── Debts Panel ──────────────────────────────────────────────────────────────
 
-function DebtsPanel({ debts, onRefresh, onAdd }: { debts: Debt[]; onRefresh: () => void; onAdd: () => void }) {
+function DebtsPanel({ debts, onRefresh, onAdd, onPay }: { debts: Debt[]; onRefresh: () => void; onAdd: () => void; onPay: (d: Debt) => void }) {
     const [filter, setFilter] = useState<'all' | 'payable' | 'receivable'>('all')
     const filtered = filter === 'all' ? debts : debts.filter(d => d.direction === filter)
     const filterLabel: Record<string, string> = { all: 'All', payable: 'I Owe', receivable: 'They Owe Me' }
@@ -737,14 +784,14 @@ function DebtsPanel({ debts, onRefresh, onAdd }: { debts: Debt[]; onRefresh: () 
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {filtered.map(d => <DebtCard key={d.id} debt={d} />)}
+                    {filtered.map(d => <DebtCard key={d.id} debt={d} onPay={() => onPay(d)} />)}
                 </div>
             )}
         </div>
     )
 }
 
-function DebtCard({ debt }: { debt: Debt }) {
+function DebtCard({ debt, onPay }: { debt: Debt; onPay: () => void }) {
     const remaining = debt.principal - debt.paid_amount
     const pct = Math.min((debt.paid_amount / debt.principal) * 100, 100)
     const isPayable = debt.direction === 'payable'
@@ -791,12 +838,22 @@ function DebtCard({ debt }: { debt: Debt }) {
                     <p className="text-[10px] text-muted-foreground">Remaining</p>
                     <p className={`text-sm font-bold ${isPayable ? 'text-rose-500' : 'text-emerald-500'}`}>{fmt(remaining)}</p>
                 </div>
-                {debt.due_date && (
-                    <div className="text-right">
-                        <p className="text-[10px] text-muted-foreground">Due</p>
-                        <p className="text-xs font-semibold">{debt.due_date}</p>
-                    </div>
-                )}
+                <div className="flex flex-col items-end gap-1">
+                    {debt.due_date && (
+                        <div className="text-right">
+                            <p className="text-[10px] text-muted-foreground">Due</p>
+                            <p className="text-xs font-semibold">{debt.due_date}</p>
+                        </div>
+                    )}
+                    {debt.status === 'active' && remaining > 0 && (
+                        <button
+                            onClick={onPay}
+                            className="flex items-center gap-1 text-[10px] font-semibold text-primary hover:underline mt-0.5"
+                        >
+                            <BadgeDollarSign className="size-3" /> Record payment
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     )
