@@ -1,25 +1,25 @@
 'use client'
 
 import { useState } from 'react'
+import { Loader2Icon, Save, Plus, Wallet, Target, PiggyBank } from 'lucide-react'
 import { toast } from 'sonner'
 import { DynamicIcon } from '@/lib/dynamic-icon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
     Dialog,
-    DialogPortal,
-    DialogOverlay,
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogClose,
-} from '@/components/animate-ui/primitives/radix/dialog'
-import { XIcon } from 'lucide-react'
+    DialogDescription,
+    DialogFooter,
+} from '@/components/animate-ui/components/radix/dialog'
 import {
-    type Wallet,
+    type Wallet as WalletType,
     type Category,
     type TransactionType,
     createBudget,
@@ -34,6 +34,8 @@ export const WALLET_COLORS = [
     '#786BEE', '#E2A9F3', '#94C3F6', '#34D399',
     '#F59E0B', '#F87171', '#60A5FA', '#A78BFA',
 ]
+
+const DIALOG_TRANSITION = { type: 'spring', stiffness: 1000, damping: 50 } as const
 
 function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {
     return (
@@ -51,53 +53,12 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
     )
 }
 
-function FormLabel({ children }: { children: React.ReactNode }) {
-    return <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">{children}</label>
-}
-
-/**
- * Shared dialog shell that correctly layers:
- *   DialogPortal (AnimatePresence) > DialogOverlay (blur fade) > DialogContent (3D spring flip)
- * — matches the animate-ui primitive animation spec exactly.
- */
-function FinanceDialogShell({
-    open, onOpenChange, title, children,
-}: {
-    open: boolean
-    onOpenChange: (o: boolean) => void
-    title: string
-    children: React.ReactNode
-}) {
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogPortal>
-                <DialogOverlay className="fixed inset-0 z-50 bg-black/50" />
-                <DialogContent
-                    from="top"
-                    className="bg-background fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md rounded-2xl border p-6 shadow-xl"
-                >
-                    {/* Header */}
-                    <div className="flex items-center justify-between mb-5">
-                        <h2 className="font-bold text-base">{title}</h2>
-                        <DialogClose className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-                            <XIcon className="size-4" />
-                            <span className="sr-only">Close</span>
-                        </DialogClose>
-                    </div>
-                    {children}
-                </DialogContent>
-            </DialogPortal>
-        </Dialog>
-    )
-}
-
-
 // ─── Add Transaction Dialog ────────────────────────────────────────────────────
 
 type AddTransactionProps = {
     open: boolean
     onOpenChange: (o: boolean) => void
-    wallets: Wallet[]
+    wallets: WalletType[]
     categories: Category[]
     onSave: (payload: any) => Promise<void>
 }
@@ -110,109 +71,158 @@ export function AddTransactionDialog({ open, onOpenChange, wallets, categories, 
     const [note, setNote] = useState('')
     const [date, setDate] = useState(today())
     const [transferTo, setTransferTo] = useState('')
-    const [saving, setSaving] = useState(false)
+    const [loading, setLoading] = useState(false)
 
     const filteredCats = categories.filter(c => c.type === type || type === 'transfer')
 
-    const handleSave = async () => {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
         const n = parseFloat(amount)
         if (!walletId) { toast.error('Select a wallet'); return }
         if (isNaN(n) || n <= 0) { toast.error('Enter valid amount'); return }
         if (type === 'transfer' && !transferTo) { toast.error('Select destination wallet'); return }
-        setSaving(true)
+        setLoading(true)
         try {
             await onSave({
                 wallet_id: walletId,
                 category_id: categoryId || null,
-                type,
-                amount: n,
-                note: note || null,
-                date,
+                type, amount: n,
+                note: note || null, date,
                 transfer_to_wallet_id: type === 'transfer' ? transferTo : null,
                 debt_id: null,
             })
-            // reset
             setAmount(''); setNote(''); setCategoryId(''); setTransferTo('')
-        } finally {
-            setSaving(false)
-        }
+        } finally { setLoading(false) }
     }
 
     return (
-        <FinanceDialogShell open={open} onOpenChange={onOpenChange} title="New Transaction">
-            {/* Type toggle */}
-            <div className="flex gap-1 bg-muted p-1 rounded-xl mb-4">
-                {(['income', 'expense', 'transfer'] as const).map(t => (
-                    <button
-                        key={t}
-                        onClick={() => setType(t)}
-                        className={`flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${type === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
-                    >
-                        {t}
-                    </button>
-                ))}
-            </div>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="sm:max-w-md"
+                from="bottom"
+                transition={DIALOG_TRANSITION}
+            >
+                <DialogHeader>
+                    <DialogTitle className="text-base font-semibold">New Transaction</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        Record an income, expense, or transfer between wallets.
+                    </DialogDescription>
+                </DialogHeader>
 
-            <div className="space-y-3">
-                <div>
-                    <FormLabel>Amount</FormLabel>
-                    <Input value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" type="number" className="text-2xl font-bold h-12 rounded-xl" />
-                </div>
-                <div>
-                    <FormLabel>From Wallet</FormLabel>
-                    <Select value={walletId} onValueChange={setWalletId}>
-                        <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue placeholder="Select wallet" /></SelectTrigger>
-                        <SelectContent>
-                            {wallets.map(w => (
-                                <SelectItem key={w.id} value={w.id} className="text-xs">{w.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                {type === 'transfer' && (
-                    <div>
-                        <FormLabel>To Wallet</FormLabel>
-                        <Select value={transferTo} onValueChange={setTransferTo}>
-                            <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue placeholder="Select wallet" /></SelectTrigger>
+                <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+                    {/* Type toggle */}
+                    <div className="flex gap-1 bg-muted p-1 rounded-xl">
+                        {(['income', 'expense', 'transfer'] as const).map(t => (
+                            <button
+                                key={t}
+                                type="button"
+                                onClick={() => setType(t)}
+                                className={`flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${type === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                            >
+                                {t}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="tx-amount" className="text-xs font-medium">Amount (IDR)</Label>
+                        <Input
+                            id="tx-amount"
+                            value={amount}
+                            onChange={e => setAmount(e.target.value)}
+                            placeholder="0"
+                            type="number"
+                            className="text-lg font-bold"
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="tx-wallet" className="text-xs font-medium">
+                            {type === 'transfer' ? 'From Wallet' : 'Wallet'}
+                        </Label>
+                        <Select value={walletId} onValueChange={setWalletId} disabled={loading}>
+                            <SelectTrigger id="tx-wallet" className="text-xs"><SelectValue placeholder="Select wallet" /></SelectTrigger>
                             <SelectContent>
-                                {wallets.filter(w => w.id !== walletId).map(w => (
+                                {wallets.map(w => (
                                     <SelectItem key={w.id} value={w.id} className="text-xs">{w.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     </div>
-                )}
-                {type !== 'transfer' && filteredCats.length > 0 && (
-                    <div>
-                        <FormLabel>Category</FormLabel>
-                        <Select value={categoryId} onValueChange={setCategoryId}>
-                            <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue placeholder="Select category" /></SelectTrigger>
-                            <SelectContent>
-                                {filteredCats.map(c => (
-                                    <SelectItem key={c.id} value={c.id} className="text-xs">
-                                        <span className="flex items-center gap-1.5">
-                                            <DynamicIcon name={c.icon} className="size-3" />
-                                            {c.name}
-                                        </span>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+
+                    {type === 'transfer' && (
+                        <div className="space-y-1.5">
+                            <Label htmlFor="tx-wallet-to" className="text-xs font-medium">To Wallet</Label>
+                            <Select value={transferTo} onValueChange={setTransferTo} disabled={loading}>
+                                <SelectTrigger id="tx-wallet-to" className="text-xs"><SelectValue placeholder="Select wallet" /></SelectTrigger>
+                                <SelectContent>
+                                    {wallets.filter(w => w.id !== walletId).map(w => (
+                                        <SelectItem key={w.id} value={w.id} className="text-xs">{w.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    {type !== 'transfer' && filteredCats.length > 0 && (
+                        <div className="space-y-1.5">
+                            <Label htmlFor="tx-category" className="text-xs font-medium">Category</Label>
+                            <Select value={categoryId} onValueChange={setCategoryId} disabled={loading}>
+                                <SelectTrigger id="tx-category" className="text-xs"><SelectValue placeholder="Select category" /></SelectTrigger>
+                                <SelectContent>
+                                    {filteredCats.map(c => (
+                                        <SelectItem key={c.id} value={c.id} className="text-xs">
+                                            <span className="flex items-center gap-1.5">
+                                                <DynamicIcon name={c.icon} className="size-3" />
+                                                {c.name}
+                                            </span>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="tx-note" className="text-xs font-medium">Note (optional)</Label>
+                        <Input
+                            id="tx-note"
+                            value={note}
+                            onChange={e => setNote(e.target.value)}
+                            placeholder="e.g. Lunch at warung"
+                            autoComplete="off"
+                            disabled={loading}
+                        />
                     </div>
-                )}
-                <div>
-                    <FormLabel>Note</FormLabel>
-                    <Input value={note} onChange={e => setNote(e.target.value)} placeholder="Optional note" className="rounded-xl text-xs h-9" />
-                </div>
-                <div>
-                    <FormLabel>Date</FormLabel>
-                    <Input value={date} onChange={e => setDate(e.target.value)} type="date" className="rounded-xl text-xs h-9" />
-                </div>
-                <Button onClick={handleSave} disabled={saving} className="w-full rounded-xl font-semibold mt-1">
-                    {saving ? 'Saving…' : 'Save Transaction'}
-                </Button>
-            </div>
-        </FinanceDialogShell>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="tx-date" className="text-xs font-medium">Date</Label>
+                        <Input
+                            id="tx-date"
+                            value={date}
+                            onChange={e => setDate(e.target.value)}
+                            type="date"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <DialogFooter className="pt-1">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={loading}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" size="sm" disabled={!amount || loading}>
+                            {loading
+                                ? <Loader2Icon className="size-3.5 animate-spin" />
+                                : <Plus className="size-3.5" />
+                            }
+                            Save Transaction
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     )
 }
 
@@ -229,48 +239,90 @@ export function AddWalletDialog({ open, onOpenChange, onSave }: AddWalletProps) 
     const [type, setType] = useState('cash')
     const [balance, setBalance] = useState('0')
     const [color, setColor] = useState(WALLET_COLORS[0])
-    const [saving, setSaving] = useState(false)
+    const [loading, setLoading] = useState(false)
 
-    const handleSave = async () => {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
         if (!name.trim()) { toast.error('Enter wallet name'); return }
-        setSaving(true)
+        setLoading(true)
         try {
             await onSave({ name: name.trim(), type, balance: parseFloat(balance) || 0, currency: 'IDR', color, icon: null, is_default: false, note: null })
             setName(''); setBalance('0')
-        } finally { setSaving(false) }
+        } finally { setLoading(false) }
     }
 
     return (
-        <FinanceDialogShell open={open} onOpenChange={onOpenChange} title="Add Wallet">
-            <div className="space-y-3">
-                <div>
-                    <FormLabel>Name</FormLabel>
-                    <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. BCA Savings" className="rounded-xl text-xs h-9" />
-                </div>
-                <div>
-                    <FormLabel>Type</FormLabel>
-                    <Select value={type} onValueChange={setType}>
-                        <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            {WALLET_TYPES.map(t => (
-                                <SelectItem key={t} value={t} className="text-xs capitalize">{t}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div>
-                    <FormLabel>Initial Balance (IDR)</FormLabel>
-                    <Input value={balance} onChange={e => setBalance(e.target.value)} type="number" className="rounded-xl text-xs h-9" />
-                </div>
-                <div>
-                    <FormLabel>Color</FormLabel>
-                    <ColorPicker value={color} onChange={setColor} />
-                </div>
-                <Button onClick={handleSave} disabled={saving} className="w-full rounded-xl font-semibold mt-1">
-                    {saving ? 'Creating…' : 'Create Wallet'}
-                </Button>
-            </div>
-        </FinanceDialogShell>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="sm:max-w-md"
+                from="bottom"
+                transition={DIALOG_TRANSITION}
+            >
+                <DialogHeader>
+                    <DialogTitle className="text-base font-semibold">Add Wallet</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        Add a new wallet to track your money.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="wallet-name" className="text-xs font-medium">Wallet name</Label>
+                        <Input
+                            id="wallet-name"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            placeholder="e.g. BCA Savings"
+                            autoFocus
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="wallet-type" className="text-xs font-medium">Type</Label>
+                        <Select value={type} onValueChange={setType} disabled={loading}>
+                            <SelectTrigger id="wallet-type" className="text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {WALLET_TYPES.map(t => (
+                                    <SelectItem key={t} value={t} className="text-xs capitalize">{t}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="wallet-balance" className="text-xs font-medium">Initial Balance (IDR)</Label>
+                        <Input
+                            id="wallet-balance"
+                            value={balance}
+                            onChange={e => setBalance(e.target.value)}
+                            type="number"
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-medium">Color</Label>
+                        <ColorPicker value={color} onChange={setColor} />
+                    </div>
+
+                    <DialogFooter className="pt-1">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={loading}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" size="sm" disabled={!name.trim() || loading}>
+                            {loading
+                                ? <Loader2Icon className="size-3.5 animate-spin" />
+                                : <Wallet className="size-3.5" />
+                            }
+                            Create Wallet
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     )
 }
 
@@ -287,13 +339,14 @@ export function AddGoalDialog({ open, onOpenChange, onSave }: AddGoalProps) {
     const [target, setTarget] = useState('')
     const [deadline, setDeadline] = useState('')
     const [color, setColor] = useState(WALLET_COLORS[2])
-    const [saving, setSaving] = useState(false)
+    const [loading, setLoading] = useState(false)
 
-    const handleSave = async () => {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
         if (!name.trim()) { toast.error('Enter goal name'); return }
         const n = parseFloat(target)
         if (isNaN(n) || n <= 0) { toast.error('Enter valid target amount'); return }
-        setSaving(true)
+        setLoading(true)
         try {
             await onSave({
                 name: name.trim(), target_amount: n, current_amount: 0,
@@ -301,33 +354,81 @@ export function AddGoalDialog({ open, onOpenChange, onSave }: AddGoalProps) {
                 note: null, is_achieved: false, wallet_id: null,
             })
             setName(''); setTarget(''); setDeadline('')
-        } finally { setSaving(false) }
+        } finally { setLoading(false) }
     }
 
     return (
-        <FinanceDialogShell open={open} onOpenChange={onOpenChange} title="New Saving Goal">
-            <div className="space-y-3">
-                <div>
-                    <FormLabel>Goal Name</FormLabel>
-                    <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Vacation Fund" className="rounded-xl text-xs h-9" />
-                </div>
-                <div>
-                    <FormLabel>Target Amount (IDR)</FormLabel>
-                    <Input value={target} onChange={e => setTarget(e.target.value)} type="number" placeholder="5000000" className="rounded-xl text-xs h-9" />
-                </div>
-                <div>
-                    <FormLabel>Deadline (optional)</FormLabel>
-                    <Input value={deadline} onChange={e => setDeadline(e.target.value)} type="date" className="rounded-xl text-xs h-9" />
-                </div>
-                <div>
-                    <FormLabel>Color</FormLabel>
-                    <ColorPicker value={color} onChange={setColor} />
-                </div>
-                <Button onClick={handleSave} disabled={saving} className="w-full rounded-xl font-semibold mt-1">
-                    {saving ? 'Creating…' : 'Create Goal'}
-                </Button>
-            </div>
-        </FinanceDialogShell>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="sm:max-w-md"
+                from="bottom"
+                transition={DIALOG_TRANSITION}
+            >
+                <DialogHeader>
+                    <DialogTitle className="text-base font-semibold">New Saving Goal</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        Set a savings target and track your progress.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="goal-name" className="text-xs font-medium">Goal name</Label>
+                        <Input
+                            id="goal-name"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            placeholder="e.g. Vacation Fund"
+                            autoFocus
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="goal-target" className="text-xs font-medium">Target amount (IDR)</Label>
+                        <Input
+                            id="goal-target"
+                            value={target}
+                            onChange={e => setTarget(e.target.value)}
+                            type="number"
+                            placeholder="5000000"
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="goal-deadline" className="text-xs font-medium">Deadline (optional)</Label>
+                        <Input
+                            id="goal-deadline"
+                            value={deadline}
+                            onChange={e => setDeadline(e.target.value)}
+                            type="date"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-medium">Color</Label>
+                        <ColorPicker value={color} onChange={setColor} />
+                    </div>
+
+                    <DialogFooter className="pt-1">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={loading}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" size="sm" disabled={!name.trim() || !target || loading}>
+                            {loading
+                                ? <Loader2Icon className="size-3.5 animate-spin" />
+                                : <PiggyBank className="size-3.5" />
+                            }
+                            Create Goal
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     )
 }
 
@@ -360,60 +461,94 @@ export function AddBudgetDialog({ open, onOpenChange, categories, onSave }: AddB
     const [categoryId, setCategoryId] = useState('')
     const [period, setPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly')
     const [amount, setAmount] = useState('')
-    const [saving, setSaving] = useState(false)
+    const [loading, setLoading] = useState(false)
 
-    const handleSave = async () => {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
         if (!categoryId) { toast.error('Select a category'); return }
         const n = parseFloat(amount)
         if (isNaN(n) || n <= 0) { toast.error('Enter valid amount'); return }
-        setSaving(true)
+        setLoading(true)
         try {
             await createBudget({ category_id: categoryId, period, amount: n, ...getPeriodDates(period) })
             toast.success('Budget created')
             setCategoryId(''); setAmount('')
             onSave()
         } catch (e: any) { toast.error(e.message) }
-        finally { setSaving(false) }
+        finally { setLoading(false) }
     }
 
     return (
-        <FinanceDialogShell open={open} onOpenChange={onOpenChange} title="New Budget">
-            <div className="space-y-3">
-                <div>
-                    <FormLabel>Category</FormLabel>
-                    <Select value={categoryId} onValueChange={setCategoryId}>
-                        <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue placeholder="Expense category" /></SelectTrigger>
-                        <SelectContent>
-                            {categories.map(c => (
-                                <SelectItem key={c.id} value={c.id} className="text-xs">
-                                    <span className="flex items-center gap-1.5">
-                                        <DynamicIcon name={c.icon} className="size-3" />
-                                        {c.name}
-                                    </span>
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div>
-                    <FormLabel>Period</FormLabel>
-                    <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
-                        <SelectTrigger className="rounded-xl text-xs h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            {(['weekly', 'monthly', 'yearly'] as const).map(p => (
-                                <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div>
-                    <FormLabel>Budget Amount (IDR)</FormLabel>
-                    <Input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder="1000000" className="rounded-xl text-xs h-9" />
-                </div>
-                <Button onClick={handleSave} disabled={saving} className="w-full rounded-xl font-semibold mt-1">
-                    {saving ? 'Creating…' : 'Create Budget'}
-                </Button>
-            </div>
-        </FinanceDialogShell>
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="sm:max-w-md"
+                from="bottom"
+                transition={DIALOG_TRANSITION}
+            >
+                <DialogHeader>
+                    <DialogTitle className="text-base font-semibold">New Budget</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        Set a spending limit for a category and period.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="budget-category" className="text-xs font-medium">Category</Label>
+                        <Select value={categoryId} onValueChange={setCategoryId} disabled={loading}>
+                            <SelectTrigger id="budget-category" className="text-xs"><SelectValue placeholder="Select expense category" /></SelectTrigger>
+                            <SelectContent>
+                                {categories.map(c => (
+                                    <SelectItem key={c.id} value={c.id} className="text-xs">
+                                        <span className="flex items-center gap-1.5">
+                                            <DynamicIcon name={c.icon} className="size-3" />
+                                            {c.name}
+                                        </span>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="budget-period" className="text-xs font-medium">Period</Label>
+                        <Select value={period} onValueChange={(v: any) => setPeriod(v)} disabled={loading}>
+                            <SelectTrigger id="budget-period" className="text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {(['weekly', 'monthly', 'yearly'] as const).map(p => (
+                                    <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="budget-amount" className="text-xs font-medium">Budget amount (IDR)</Label>
+                        <Input
+                            id="budget-amount"
+                            value={amount}
+                            onChange={e => setAmount(e.target.value)}
+                            type="number"
+                            placeholder="1000000"
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <DialogFooter className="pt-1">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={loading}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" size="sm" disabled={!categoryId || !amount || loading}>
+                            {loading
+                                ? <Loader2Icon className="size-3.5 animate-spin" />
+                                : <Target className="size-3.5" />
+                            }
+                            Create Budget
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     )
 }
