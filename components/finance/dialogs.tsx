@@ -19,6 +19,9 @@ import {
     DialogFooter,
 } from '@/components/animate-ui/components/radix/dialog'
 import {
+    Tabs, TabsList, TabsTrigger,
+} from '@/components/animate-ui/components/animate/tabs'
+import {
     type Wallet as WalletType,
     type Category,
     type TransactionType,
@@ -99,7 +102,6 @@ export function AddTransactionDialog({ open, onOpenChange, wallets, categories, 
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
                 className="sm:max-w-md"
-                from="bottom"
                 transition={DIALOG_TRANSITION}
             >
                 <DialogHeader>
@@ -110,19 +112,17 @@ export function AddTransactionDialog({ open, onOpenChange, wallets, categories, 
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-                    {/* Type toggle */}
-                    <div className="flex gap-1 bg-muted p-1 rounded-xl">
-                        {(['income', 'expense', 'transfer'] as const).map(t => (
-                            <button
-                                key={t}
-                                type="button"
-                                onClick={() => setType(t)}
-                                className={`flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${type === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
-                            >
-                                {t}
-                            </button>
-                        ))}
-                    </div>
+                    {/* Type — animate-ui Tabs */}
+                    <Tabs
+                        value={type}
+                        onValueChange={(v) => setType(v as TransactionType)}
+                    >
+                        <TabsList className="w-full">
+                            <TabsTrigger value="income" className="flex-1 text-xs capitalize">Income</TabsTrigger>
+                            <TabsTrigger value="expense" className="flex-1 text-xs capitalize">Expense</TabsTrigger>
+                            <TabsTrigger value="transfer" className="flex-1 text-xs capitalize">Transfer</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
 
                     <div className="space-y-1.5">
                         <Label htmlFor="tx-amount" className="text-xs font-medium">Amount (IDR)</Label>
@@ -283,7 +283,7 @@ export function AddWalletDialog({ open, onOpenChange, onSave }: AddWalletProps) 
                         <Label htmlFor="wallet-type" className="text-xs font-medium">Type</Label>
                         <Select value={type} onValueChange={setType} disabled={loading}>
                             <SelectTrigger id="wallet-type" className="text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="py-1.5 px-1">
                                 {WALLET_TYPES.map(t => (
                                     <SelectItem key={t} value={t} className="text-xs capitalize">{t}</SelectItem>
                                 ))}
