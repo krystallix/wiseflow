@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2Icon, Save, Plus, Wallet, Target, PiggyBank, Pencil } from 'lucide-react'
+import { Loader2Icon, Save, Plus, Wallet, Target, PiggyBank, Pencil, HandCoins, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { DynamicIcon } from '@/lib/dynamic-icon'
 import { Button } from '@/components/ui/button'
@@ -22,8 +22,13 @@ import {
     type Wallet as WalletType,
     type Category,
     type TransactionType,
+    type DebtDirection,
+    type Contact,
     createBudget,
     updateWallet,
+    createDebt,
+    createContact,
+    getContacts,
 } from '@/lib/supabase/finance'
 
 // ─── Shared ───────────────────────────────────────────────────────────────────
@@ -623,7 +628,7 @@ export function EditWalletDialog({ open, onOpenChange, wallet, onSave }: EditWal
                         <Label htmlFor="edit-wallet-type" className="text-xs font-medium">Type</Label>
                         <Select value={type} onValueChange={setType} disabled={loading}>
                             <SelectTrigger id="edit-wallet-type" className="text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent className="py-1.5 px-1">
+                            <SelectContent>
                                 {WALLET_TYPES.map(t => (
                                     <SelectItem key={t} value={t} className="text-xs capitalize">{t}</SelectItem>
                                 ))}
@@ -669,6 +674,244 @@ export function EditWalletDialog({ open, onOpenChange, wallet, onSave }: EditWal
                                 : <Pencil className="size-3.5" />
                             }
                             Save Changes
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+// ─── Add Debt / Loan Dialog ───────────────────────────────────────────────────
+
+type AddDebtProps = {
+    open: boolean
+    onOpenChange: (o: boolean) => void
+    wallets: WalletType[]
+    onSave: () => void
+}
+
+export function AddDebtDialog({ open, onOpenChange, wallets, onSave }: AddDebtProps) {
+    const [contactMode, setContactMode] = useState<'existing' | 'new'>('existing')
+    const [contacts, setContacts] = useState<Contact[]>([])
+    const [contactsLoaded, setContactsLoaded] = useState(false)
+    const [contactId, setContactId] = useState('')
+    const [newName, setNewName] = useState('')
+    const [newPhone, setNewPhone] = useState('')
+    const [direction, setDirection] = useState<DebtDirection>('payable')
+    const [principal, setPrincipal] = useState('')
+    const [walletId, setWalletId] = useState(wallets.find(w => w.is_default)?.id ?? wallets[0]?.id ?? '')
+    const [dueDate, setDueDate] = useState('')
+    const [description, setDescription] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    const loadContacts = async () => {
+        if (contactsLoaded) return
+        try {
+            const data = await getContacts()
+            setContacts(data)
+            setContactsLoaded(true)
+        } catch { /* ignore */ }
+    }
+
+    const handleOpen = (o: boolean) => {
+        onOpenChange(o)
+        if (o) loadContacts()
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        const n = parseFloat(principal)
+        if (isNaN(n) || n <= 0) { toast.error('Enter valid amount'); return }
+        setLoading(true)
+        try {
+            let resolvedContactId = contactId
+            if (contactMode === 'new') {
+                if (!newName.trim()) { toast.error('Enter contact name'); return }
+                const created = await createContact({
+                    name: newName.trim(),
+                    phone: newPhone.trim() || null,
+                    email: null, note: null, avatar_url: null,
+                })
+                resolvedContactId = created.id
+                setContacts(prev => [...prev, created])
+                setContactsLoaded(true)
+            } else {
+                if (!resolvedContactId) { toast.error('Select a contact'); return }
+            }
+
+            await createDebt({
+                contact_id: resolvedContactId,
+                wallet_id: walletId || null,
+                direction,
+                principal: n,
+                due_date: dueDate || null,
+                description: description.trim() || null,
+            })
+
+            toast.success(direction === 'payable' ? 'Debt recorded' : 'Loan recorded')
+            setContactId(''); setNewName(''); setNewPhone('')
+            setPrincipal(''); setDueDate(''); setDescription('')
+            setContactMode('existing')
+            onSave()
+            onOpenChange(false)
+        } catch (err: any) {
+            toast.error(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={handleOpen}>
+            <DialogContent className="sm:max-w-md" transition={DIALOG_TRANSITION}>
+                <DialogHeader>
+                    <DialogTitle className="text-base font-semibold">Add Debt / Loan</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        Record money you owe or are owed by someone.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+                    {/* Direction toggle */}
+                    <div className="flex gap-1 bg-muted p-1 rounded-xl">
+                        {([
+                            { value: 'payable', label: '💸 I Owe' },
+                            { value: 'receivable', label: '🤝 They Owe Me' },
+                        ] as const).map(({ value, label }) => (
+                            <button
+                                key={value}
+                                type="button"
+                                onClick={() => setDirection(value)}
+                                className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${direction === value ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Contact */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-xs font-medium">Contact</Label>
+                            <button
+                                type="button"
+                                onClick={() => setContactMode(m => m === 'existing' ? 'new' : 'existing')}
+                                className="flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+                            >
+                                {contactMode === 'existing'
+                                    ? <><UserPlus className="size-3" /> New contact</>
+                                    : <><HandCoins className="size-3" /> Pick existing</>
+                                }
+                            </button>
+                        </div>
+
+                        {contactMode === 'existing' ? (
+                            <Select value={contactId} onValueChange={setContactId} disabled={loading}>
+                                <SelectTrigger className="text-xs w-full">
+                                    <SelectValue placeholder="Select contact" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {contacts.length === 0
+                                        ? <SelectItem value="_none" disabled className="text-xs text-muted-foreground italic">No contacts yet — create one →</SelectItem>
+                                        : contacts.map(c => (
+                                            <SelectItem key={c.id} value={c.id} className="text-xs">
+                                                {c.name}{c.phone ? ` · ${c.phone}` : ''}
+                                            </SelectItem>
+                                        ))
+                                    }
+                                </SelectContent>
+                            </Select>
+                        ) : (
+                            <div className="space-y-2">
+                                <Input
+                                    value={newName}
+                                    onChange={e => setNewName(e.target.value)}
+                                    placeholder="Contact name *"
+                                    autoComplete="off"
+                                    disabled={loading}
+                                />
+                                <Input
+                                    value={newPhone}
+                                    onChange={e => setNewPhone(e.target.value)}
+                                    placeholder="Phone (optional)"
+                                    autoComplete="off"
+                                    disabled={loading}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Amount */}
+                    <div className="space-y-1.5">
+                        <Label htmlFor="debt-amount" className="text-xs font-medium">Amount (IDR)</Label>
+                        <Input
+                            id="debt-amount"
+                            value={principal}
+                            onChange={e => setPrincipal(e.target.value)}
+                            type="number"
+                            placeholder="0"
+                            className="text-lg font-bold"
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    {/* Wallet */}
+                    {wallets.length > 0 && (
+                        <div className="space-y-1.5">
+                            <Label htmlFor="debt-wallet" className="text-xs font-medium">
+                                {direction === 'payable' ? 'Pay from wallet (optional)' : 'Receive to wallet (optional)'}
+                            </Label>
+                            <Select value={walletId} onValueChange={setWalletId} disabled={loading}>
+                                <SelectTrigger id="debt-wallet" className="text-xs w-full">
+                                    <SelectValue placeholder="None" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="" className="text-xs text-muted-foreground">None</SelectItem>
+                                    {wallets.map(w => (
+                                        <SelectItem key={w.id} value={w.id} className="text-xs">{w.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    {/* Due date */}
+                    <div className="space-y-1.5">
+                        <Label htmlFor="debt-due" className="text-xs font-medium">Due date (optional)</Label>
+                        <Input
+                            id="debt-due"
+                            value={dueDate}
+                            onChange={e => setDueDate(e.target.value)}
+                            type="date"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    {/* Note */}
+                    <div className="space-y-1.5">
+                        <Label htmlFor="debt-note" className="text-xs font-medium">Note (optional)</Label>
+                        <Input
+                            id="debt-note"
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            placeholder="e.g. Borrowed for rent"
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <DialogFooter className="pt-1">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={loading}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" size="sm" disabled={!principal || loading}>
+                            {loading
+                                ? <Loader2Icon className="size-3.5 animate-spin" />
+                                : <HandCoins className="size-3.5" />
+                            }
+                            {direction === 'payable' ? 'Record Debt' : 'Record Loan'}
                         </Button>
                     </DialogFooter>
                 </form>

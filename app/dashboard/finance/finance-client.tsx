@@ -30,6 +30,7 @@ import {
     AddWalletDialog,
     AddGoalDialog,
     AddBudgetDialog,
+    AddDebtDialog,
     EditWalletDialog,
 } from '@/components/finance/dialogs'
 
@@ -53,6 +54,7 @@ export default function FinanceClient() {
     const [openTx, setOpenTx] = useState(false)
     const [openWallet, setOpenWallet] = useState(false)
     const [openGoal, setOpenGoal] = useState(false)
+    const [openDebt, setOpenDebt] = useState(false)
     const [editWallet, setEditWallet] = useState<WalletType | null>(null)
 
     const fetchAll = useCallback(async () => {
@@ -167,7 +169,7 @@ export default function FinanceClient() {
                     </TabsContent>
 
                     <TabsContent value="debts">
-                        <DebtsPanel debts={debts} onRefresh={fetchAll} />
+                        <DebtsPanel debts={debts} onRefresh={fetchAll} onAdd={() => setOpenDebt(true)} />
                     </TabsContent>
                 </TabsContents>
             </Tabs>
@@ -216,6 +218,13 @@ export default function FinanceClient() {
                     onSave={() => fetchAll()}
                 />
             )}
+
+            <AddDebtDialog
+                open={openDebt}
+                onOpenChange={setOpenDebt}
+                wallets={wallets}
+                onSave={fetchAll}
+            />
         </div>
     )
 }
@@ -688,35 +697,43 @@ function GoalCard({ goal, onUpdate, onDelete }: {
 
 // ─── Debts Panel ──────────────────────────────────────────────────────────────
 
-function DebtsPanel({ debts, onRefresh }: { debts: Debt[]; onRefresh: () => void }) {
+function DebtsPanel({ debts, onRefresh, onAdd }: { debts: Debt[]; onRefresh: () => void; onAdd: () => void }) {
     const [filter, setFilter] = useState<'all' | 'payable' | 'receivable'>('all')
     const filtered = filter === 'all' ? debts : debts.filter(d => d.direction === filter)
-    const filterLabel: Record<string, string> = { all: 'All', payable: 'Payable', receivable: 'Receivable' }
+    const filterLabel: Record<string, string> = { all: 'All', payable: 'I Owe', receivable: 'They Owe Me' }
 
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="font-bold text-sm">Debts & Loans</h3>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button size="sm" variant="outline" className="h-7 text-xs rounded-xl gap-1.5">
-                            <Filter className="size-3" /> {filterLabel[filter]}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-36">
-                        <DropdownMenuLabel>Filter</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuRadioGroup value={filter} onValueChange={(v) => setFilter(v as any)}>
-                            <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="payable">Payable</DropdownMenuRadioItem>
-                            <DropdownMenuRadioItem value="receivable">Receivable</DropdownMenuRadioItem>
-                        </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <h3 className="font-bold text-sm">Debts &amp; Loans</h3>
+                <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" className="h-7 text-xs rounded-xl gap-1" onClick={onAdd}>
+                        <Plus className="size-3" /> Add
+                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline" className="h-7 text-xs rounded-xl gap-1.5">
+                                <Filter className="size-3" /> {filterLabel[filter]}
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuLabel>Filter</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuRadioGroup value={filter} onValueChange={(v) => setFilter(v as any)}>
+                                <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="payable">I Owe</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="receivable">They Owe Me</DropdownMenuRadioItem>
+                            </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             </div>
             {filtered.length === 0 ? (
                 <div className="bg-card rounded-2xl p-10 shadow-sm">
-                    <EmptyState icon={<CreditCard className="size-8" />} label="No debts" />
+                    <EmptyState icon={<CreditCard className="size-8" />} label="No debts or loans" />
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                        <button onClick={onAdd} className="text-primary font-medium hover:underline">Add your first debt or loan</button>
+                    </p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
