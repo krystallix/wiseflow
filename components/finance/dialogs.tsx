@@ -700,7 +700,7 @@ export function AddDebtDialog({ open, onOpenChange, wallets, onSave }: AddDebtPr
     const [newPhone, setNewPhone] = useState('')
     const [direction, setDirection] = useState<DebtDirection>('payable')
     const [principal, setPrincipal] = useState('')
-    const [walletId, setWalletId] = useState(wallets.find(w => w.is_default)?.id ?? wallets[0]?.id ?? '')
+    const [walletId, setWalletId] = useState(wallets.find(w => w.is_default)?.id ?? wallets[0]?.id ?? '__none__')
     const [dueDate, setDueDate] = useState('')
     const [description, setDescription] = useState('')
     const [loading, setLoading] = useState(false)
@@ -742,7 +742,7 @@ export function AddDebtDialog({ open, onOpenChange, wallets, onSave }: AddDebtPr
 
             await createDebt({
                 contact_id: resolvedContactId,
-                wallet_id: walletId || null,
+                wallet_id: walletId === '__none__' ? null : (walletId || null),
                 direction,
                 principal: n,
                 due_date: dueDate || null,
@@ -868,7 +868,7 @@ export function AddDebtDialog({ open, onOpenChange, wallets, onSave }: AddDebtPr
                                     <SelectValue placeholder="None" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="" className="text-xs text-muted-foreground">None</SelectItem>
+                                    <SelectItem value="__none__" className="text-xs text-muted-foreground">None</SelectItem>
                                     {wallets.map(w => (
                                         <SelectItem key={w.id} value={w.id} className="text-xs">{w.name}</SelectItem>
                                     ))}
