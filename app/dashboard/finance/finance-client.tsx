@@ -5,7 +5,7 @@ import {
     Wallet, TrendingUp, TrendingDown, Plus, ArrowUpRight, ArrowDownLeft,
     ArrowLeftRight, Target, CreditCard, PiggyBank,
     Trash2, CheckCircle2, Clock, AlertCircle, X,
-    DollarSign, BarChart3, Banknote, Receipt, Filter,
+    DollarSign, BarChart3, Banknote, Receipt, Filter, Pencil,
 } from 'lucide-react'
 import { DynamicIcon } from '@/lib/dynamic-icon'
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,7 @@ import { toast } from 'sonner'
 import {
     getWallets, getTransactions, getBudgets, getSavingGoals, getDebts, getCategories,
     createTransaction, createWallet, createSavingGoal, updateSavingGoal, deleteSavingGoal,
-    deleteTransaction, computeSummary,
+    deleteTransaction, deleteWallet, computeSummary,
     type Wallet as WalletType, type Transaction, type Budget, type SavingGoal,
     type Debt, type Category, type TransactionType,
 } from '@/lib/supabase/finance'
@@ -30,6 +30,7 @@ import {
     AddWalletDialog,
     AddGoalDialog,
     AddBudgetDialog,
+    EditWalletDialog,
 } from '@/components/finance/dialogs'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -52,6 +53,7 @@ export default function FinanceClient() {
     const [openTx, setOpenTx] = useState(false)
     const [openWallet, setOpenWallet] = useState(false)
     const [openGoal, setOpenGoal] = useState(false)
+    const [editWallet, setEditWallet] = useState<WalletType | null>(null)
 
     const fetchAll = useCallback(async () => {
         try {
@@ -110,7 +112,18 @@ export default function FinanceClient() {
             <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar">
                 {wallets.length === 0
                     ? <EmptyWalletCard onClick={() => setOpenWallet(true)} />
-                    : wallets.map(w => <WalletCard key={w.id} wallet={w} />)
+                    : wallets.map(w => (
+                        <WalletCard
+                            key={w.id}
+                            wallet={w}
+                            onEdit={() => setEditWallet(w)}
+                            onDelete={async () => {
+                                await deleteWallet(w.id)
+                                toast.success('Wallet deleted')
+                                fetchAll()
+                            }}
+                        />
+                    ))
                 }
             </div>
 
@@ -194,6 +207,15 @@ export default function FinanceClient() {
                     fetchAll()
                 }}
             />
+
+            {editWallet && (
+                <EditWalletDialog
+                    open={!!editWallet}
+                    onOpenChange={(o) => { if (!o) setEditWallet(null) }}
+                    wallet={editWallet}
+                    onSave={() => fetchAll()}
+                />
+            )}
         </div>
     )
 }
@@ -223,12 +245,16 @@ function SummaryCard({ label, value, icon, color, trend }: {
 
 // ─── Wallet Card ──────────────────────────────────────────────────────────────
 
-function WalletCard({ wallet }: { wallet: WalletType }) {
+function WalletCard({ wallet, onEdit, onDelete }: {
+    wallet: WalletType
+    onEdit: () => void
+    onDelete: () => void
+}) {
     const bg = wallet.color ?? '#786BEE'
     const typeIcons: Record<string, string> = { bank: '🏦', cash: '💵', 'e-wallet': '📱', investment: '📈', other: '💳' }
     return (
         <div
-            className="flex-shrink-0 w-52 rounded-2xl p-4 text-white shadow-sm flex flex-col gap-3 relative overflow-hidden"
+            className="flex-shrink-0 w-52 rounded-2xl p-4 text-white shadow-sm flex flex-col gap-3 relative overflow-hidden group"
             style={{ background: `linear-gradient(135deg, ${bg}cc, ${bg})` }}
         >
             <div className="absolute inset-0 opacity-10">
@@ -237,7 +263,23 @@ function WalletCard({ wallet }: { wallet: WalletType }) {
             </div>
             <div className="flex items-center justify-between relative z-10">
                 <span className="text-xs font-semibold opacity-80 capitalize">{wallet.type}{wallet.is_default ? ' ⭐' : ''}</span>
-                <span className="text-lg">{typeIcons[wallet.type] ?? '💳'}</span>
+                {/* Action buttons — visible on hover */}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                        onClick={onEdit}
+                        className="p-1 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
+                        title="Edit wallet"
+                    >
+                        <Pencil className="size-3" />
+                    </button>
+                    <button
+                        onClick={onDelete}
+                        className="p-1 rounded-lg bg-white/20 hover:bg-red-400/60 transition-colors"
+                        title="Delete wallet"
+                    >
+                        <Trash2 className="size-3" />
+                    </button>
+                </div>
             </div>
             <div className="relative z-10">
                 <p className="text-xs opacity-70 font-medium">{wallet.name}</p>

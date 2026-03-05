@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2Icon, Save, Plus, Wallet, Target, PiggyBank } from 'lucide-react'
+import { Loader2Icon, Save, Plus, Wallet, Target, PiggyBank, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { DynamicIcon } from '@/lib/dynamic-icon'
 import { Button } from '@/components/ui/button'
@@ -19,13 +19,11 @@ import {
     DialogFooter,
 } from '@/components/animate-ui/components/radix/dialog'
 import {
-    Tabs, TabsList, TabsTrigger,
-} from '@/components/animate-ui/components/animate/tabs'
-import {
     type Wallet as WalletType,
     type Category,
     type TransactionType,
     createBudget,
+    updateWallet,
 } from '@/lib/supabase/finance'
 
 // ─── Shared ───────────────────────────────────────────────────────────────────
@@ -112,17 +110,19 @@ export function AddTransactionDialog({ open, onOpenChange, wallets, categories, 
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-                    {/* Type — animate-ui Tabs */}
-                    <Tabs
-                        value={type}
-                        onValueChange={(v) => setType(v as TransactionType)}
-                    >
-                        <TabsList className="w-full">
-                            <TabsTrigger value="income" className="flex-1 text-xs capitalize">Income</TabsTrigger>
-                            <TabsTrigger value="expense" className="flex-1 text-xs capitalize">Expense</TabsTrigger>
-                            <TabsTrigger value="transfer" className="flex-1 text-xs capitalize">Transfer</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
+                    {/* Type toggle */}
+                    <div className="flex gap-1 bg-muted p-1 rounded-xl">
+                        {(['income', 'expense', 'transfer'] as const).map(t => (
+                            <button
+                                key={t}
+                                type="button"
+                                onClick={() => setType(t)}
+                                className={`flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${type === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                            >
+                                {t}
+                            </button>
+                        ))}
+                    </div>
 
                     <div className="space-y-1.5">
                         <Label htmlFor="tx-amount" className="text-xs font-medium">Amount (IDR)</Label>
@@ -545,6 +545,130 @@ export function AddBudgetDialog({ open, onOpenChange, categories, onSave }: AddB
                                 : <Target className="size-3.5" />
                             }
                             Create Budget
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+// ─── Edit Wallet Dialog ───────────────────────────────────────────────────────
+
+type EditWalletProps = {
+    open: boolean
+    onOpenChange: (o: boolean) => void
+    wallet: WalletType
+    onSave: (updated: WalletType) => void
+}
+
+export function EditWalletDialog({ open, onOpenChange, wallet, onSave }: EditWalletProps) {
+    const [name, setName] = useState(wallet.name)
+    const [type, setType] = useState(wallet.type)
+    const [balance, setBalance] = useState(String(wallet.balance))
+    const [color, setColor] = useState(wallet.color ?? WALLET_COLORS[0])
+    const [isDefault, setIsDefault] = useState(wallet.is_default)
+    const [loading, setLoading] = useState(false)
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!name.trim()) { toast.error('Enter wallet name'); return }
+        setLoading(true)
+        try {
+            const updated = await updateWallet(wallet.id, {
+                name: name.trim(),
+                type,
+                balance: parseFloat(balance) || 0,
+                color,
+                is_default: isDefault,
+            })
+            toast.success('Wallet updated')
+            onSave(updated)
+            onOpenChange(false)
+        } catch (e: any) {
+            toast.error(e.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="sm:max-w-md"
+                transition={DIALOG_TRANSITION}
+            >
+                <DialogHeader>
+                    <DialogTitle className="text-base font-semibold">Edit Wallet</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        Update wallet name, type, balance, or color.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="edit-wallet-name" className="text-xs font-medium">Wallet name</Label>
+                        <Input
+                            id="edit-wallet-name"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            placeholder="e.g. BCA Savings"
+                            autoFocus
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="edit-wallet-type" className="text-xs font-medium">Type</Label>
+                        <Select value={type} onValueChange={setType} disabled={loading}>
+                            <SelectTrigger id="edit-wallet-type" className="text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent className="py-1.5 px-1">
+                                {WALLET_TYPES.map(t => (
+                                    <SelectItem key={t} value={t} className="text-xs capitalize">{t}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="edit-wallet-balance" className="text-xs font-medium">Balance (IDR)</Label>
+                        <Input
+                            id="edit-wallet-balance"
+                            value={balance}
+                            onChange={e => setBalance(e.target.value)}
+                            type="number"
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label className="text-xs font-medium">Color</Label>
+                        <ColorPicker value={color} onChange={setColor} />
+                    </div>
+
+                    {/* Default toggle */}
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                        <div
+                            onClick={() => setIsDefault(v => !v)}
+                            className={`w-9 h-5 rounded-full transition-colors ${isDefault ? 'bg-primary' : 'bg-muted'} relative flex-shrink-0`}
+                        >
+                            <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${isDefault ? 'translate-x-4' : ''}`} />
+                        </div>
+                        <span className="text-xs font-medium">Set as default wallet</span>
+                    </label>
+
+                    <DialogFooter className="pt-1">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={loading}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" size="sm" disabled={!name.trim() || loading}>
+                            {loading
+                                ? <Loader2Icon className="size-3.5 animate-spin" />
+                                : <Pencil className="size-3.5" />
+                            }
+                            Save Changes
                         </Button>
                     </DialogFooter>
                 </form>
