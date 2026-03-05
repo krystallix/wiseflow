@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2Icon, Save, Plus, Wallet, Target, PiggyBank, Pencil, HandCoins, UserPlus, Tags, BadgeDollarSign } from 'lucide-react'
+import { Loader2Icon, Save, Plus, Wallet, Target, PiggyBank, Pencil, HandCoins, UserPlus, Tags, BadgeDollarSign, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, TrendingDown, TrendingUp, Banknote, Handshake } from 'lucide-react'
 import { toast } from 'sonner'
 import { DynamicIcon } from '@/lib/dynamic-icon'
 import { Button } from '@/components/ui/button'
@@ -117,16 +117,21 @@ export function AddTransactionDialog({ open, onOpenChange, wallets, categories, 
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-                    {/* Type toggle */}
+                    {/* Type toggle — Lucide icon tabs */}
                     <div className="flex gap-1 bg-muted p-1 rounded-xl">
-                        {(['income', 'expense', 'transfer'] as const).map(t => (
+                        {([
+                            { value: 'income', label: 'Income', icon: <ArrowDownLeft className="size-3.5" /> },
+                            { value: 'expense', label: 'Expense', icon: <ArrowUpRight className="size-3.5" /> },
+                            { value: 'transfer', label: 'Transfer', icon: <ArrowLeftRight className="size-3.5" /> },
+                        ] as const).map(({ value, label, icon }) => (
                             <button
-                                key={t}
+                                key={value}
                                 type="button"
-                                onClick={() => setType(t)}
-                                className={`flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${type === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                                onClick={() => setType(value)}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${type === value ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground/70'
+                                    }`}
                             >
-                                {t}
+                                {icon}{label}
                             </button>
                         ))}
                     </div>
@@ -775,19 +780,20 @@ export function AddDebtDialog({ open, onOpenChange, wallets, onSave }: AddDebtPr
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-                    {/* Direction toggle */}
+                    {/* Direction toggle — Lucide icon tabs */}
                     <div className="flex gap-1 bg-muted p-1 rounded-xl">
                         {([
-                            { value: 'payable', label: '💸 I Owe' },
-                            { value: 'receivable', label: '🤝 They Owe Me' },
-                        ] as const).map(({ value, label }) => (
+                            { value: 'payable', label: 'I Owe', icon: <Banknote className="size-3.5" /> },
+                            { value: 'receivable', label: 'They Owe Me', icon: <Handshake className="size-3.5" /> },
+                        ] as const).map(({ value, label, icon }) => (
                             <button
                                 key={value}
                                 type="button"
                                 onClick={() => setDirection(value)}
-                                className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${direction === value ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${direction === value ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground/70'
+                                    }`}
                             >
-                                {label}
+                                {icon}{label}
                             </button>
                         ))}
                     </div>
@@ -976,16 +982,20 @@ export function AddCategoryDialog({ open, onOpenChange, onSave }: AddCategoryPro
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-                    {/* Type toggle */}
+                    {/* Type toggle — Lucide icon tabs */}
                     <div className="flex gap-1 bg-muted p-1 rounded-xl">
-                        {(['expense', 'income'] as const).map(t => (
+                        {([
+                            { value: 'expense', label: 'Expense', icon: <TrendingDown className="size-3.5" /> },
+                            { value: 'income', label: 'Income', icon: <TrendingUp className="size-3.5" /> },
+                        ] as const).map(({ value, label, icon }) => (
                             <button
-                                key={t}
+                                key={value}
                                 type="button"
-                                onClick={() => setType(t)}
-                                className={`flex-1 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${type === t ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                                onClick={() => setType(value)}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${type === value ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground/70'
+                                    }`}
                             >
-                                {t === 'expense' ? '💸 Expense' : '💰 Income'}
+                                {icon}{label}
                             </button>
                         ))}
                     </div>
