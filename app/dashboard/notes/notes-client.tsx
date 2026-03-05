@@ -2,10 +2,13 @@
 
 import { useState, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Notebook, Plus, Save, Trash2, ChevronDown, Loader2, FileText, RotateCcw } from "lucide-react";
+import { Notebook, Plus, Save, Trash2, ChevronDown, Loader2, FileText, RotateCcw, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import {
+    Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from "@/components/ui/sheet";
 import { EditorWrapper } from "./editor-wrapper";
 import { type Note } from "@/lib/supabase/notes";
 import { createNoteClient, updateNoteClient, softDeleteNoteClient, restoreNoteClient, permanentlyDeleteNoteClient } from "@/lib/supabase/notes-client-actions";
@@ -65,6 +68,113 @@ function isDraft(note: ActiveNote): note is DraftNote {
     return note.id === "__draft__";
 }
 
+// ─── Notes List Content (shared between desktop sidebar and mobile sheet) ────
+
+function NotesListContent({
+    notes,
+    deletedNotes,
+    activeNote,
+    editorTitle,
+    onSelectNote,
+    onNewNote,
+}: {
+    notes: Note[];
+    deletedNotes: Note[];
+    activeNote: ActiveNote | null;
+    editorTitle: string;
+    onSelectNote: (note: Note) => void;
+    onNewNote: () => void;
+}) {
+    return (
+        <>
+            <div className="flex justify-between items-center">
+                <span className="font-semibold text-lg shrink-0">Notes</span>
+                <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={onNewNote}
+                    title="New note"
+                >
+                    <Plus />
+                </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto flex flex-col gap-4">
+                {/* All Notes */}
+                <Collapsible defaultOpen>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-2 text-sm font-semibold hover:bg-sidebar-accent transition-colors [&[data-state=open]>svg]:rotate-180">
+                        All Notes
+                        <ChevronDown className="size-4 shrink-0 transition-transform duration-200" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-1 flex flex-col gap-2 px-1">
+                        {/* Draft pill */}
+                        {activeNote && isDraft(activeNote) && (
+                            <div className="p-2 bg-sidebar-accent cursor-pointer transition-colors text-left flex flex-col border-b last:border-0 ring-1 ring-primary/30 rounded-sm">
+                                <div className="flex justify-between gap-2">
+                                    <span className="font-medium text-sm truncate italic text-muted-foreground">
+                                        {editorTitle || "Untitled"}
+                                    </span>
+                                    <span className="text-2xs text-muted-foreground mt-1 shrink-0">New</span>
+                                </div>
+                            </div>
+                        )}
+                        {notes.length === 0 && !(activeNote && isDraft(activeNote)) ? (
+                            <div className="p-4 text-center text-sm text-muted-foreground italic">
+                                No Notes
+                            </div>
+                        ) : notes.map((note) => (
+                            <div
+                                key={note.id}
+                                onClick={() => onSelectNote(note)}
+                                className={cn(
+                                    "p-2 hover:bg-sidebar-accent cursor-pointer transition-colors text-left flex flex-col border-b last:border-0 rounded-sm",
+                                    activeNote && !isDraft(activeNote) && activeNote.id === note.id && "bg-sidebar-accent"
+                                )}
+                            >
+                                <div className="flex justify-between gap-2">
+                                    <span className="font-medium text-sm truncate">{note.title}</span>
+                                    <span className="text-2xs text-muted-foreground mt-1 shrink-0">{formatNoteDate(note.updated_at)}</span>
+                                </div>
+                                <span className="text-xs text-muted-foreground truncate">{extractTextFromBlockNote(note.content)}</span>
+                            </div>
+                        ))}
+                    </CollapsibleContent>
+                </Collapsible>
+
+                {/* Recently Deleted */}
+                <Collapsible>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-2 text-sm font-semibold hover:bg-sidebar-accent transition-colors [&[data-state=open]>svg]:rotate-180">
+                        Recently Deleted
+                        <ChevronDown className="size-4 shrink-0 transition-transform duration-200" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-1 flex flex-col gap-2 px-1">
+                        {deletedNotes.length === 0 ? (
+                            <div className="p-4 text-center text-sm text-muted-foreground italic">
+                                No Items
+                            </div>
+                        ) : deletedNotes.map((note) => (
+                            <div
+                                key={note.id}
+                                onClick={() => onSelectNote(note)}
+                                className={cn(
+                                    "p-2 hover:bg-sidebar-accent cursor-pointer transition-colors text-left flex flex-col border-b last:border-0 opacity-60 rounded-sm",
+                                    activeNote && !isDraft(activeNote) && activeNote.id === note.id && "bg-sidebar-accent opacity-100"
+                                )}
+                            >
+                                <div className="flex justify-between gap-2">
+                                    <span className="font-medium text-sm truncate line-through">{note.title}</span>
+                                    <span className="text-2xs text-muted-foreground mt-1 shrink-0">{formatNoteDate(note.deleted_at!)}</span>
+                                </div>
+                                <span className="text-xs text-muted-foreground truncate">{extractTextFromBlockNote(note.content)}</span>
+                            </div>
+                        ))}
+                    </CollapsibleContent>
+                </Collapsible>
+            </div>
+        </>
+    );
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 interface NotesClientProps {
@@ -96,6 +206,9 @@ export function NotesClient({ initialNotes, initialDeletedNotes }: NotesClientPr
     const [hardDeleting, setHardDeleting] = useState(false);
     const [isPending, startTransition] = useTransition();
 
+    // Mobile sheet state
+    const [sheetOpen, setSheetOpen] = useState(false);
+
     const isDeletedNote = activeNote && !isDraft(activeNote) && activeNote.deleted_at !== null;
 
     // ── Select a saved note ──────────────────────────────────────────────────
@@ -103,6 +216,7 @@ export function NotesClient({ initialNotes, initialDeletedNotes }: NotesClientPr
         setActiveNote(note);
         setEditorTitle(note.title);
         setEditorContent(note.content ?? "");
+        setSheetOpen(false); // close sheet on mobile after selection
     };
 
     // ── Create a new draft ───────────────────────────────────────────────────
@@ -117,6 +231,7 @@ export function NotesClient({ initialNotes, initialDeletedNotes }: NotesClientPr
         setActiveNote(draft);
         setEditorTitle("Untitled");
         setEditorContent("");
+        setSheetOpen(false); // close sheet on mobile
     };
 
     // ── Save (create or update) ──────────────────────────────────────────────
@@ -258,98 +373,49 @@ export function NotesClient({ initialNotes, initialDeletedNotes }: NotesClientPr
                         A dedicated space to capture your thoughts.
                     </p>
                 </div>
+                {/* Mobile sheet trigger */}
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="md:hidden rounded-xl gap-1.5 text-xs"
+                    onClick={() => setSheetOpen(true)}
+                >
+                    <List className="size-3.5" /> Notes
+                </Button>
             </div>
+
+            {/* ── Mobile Notes Sheet ── */}
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetContent side="left" className="w-[85%] sm:max-w-sm p-4 flex flex-col gap-4">
+                    <SheetHeader>
+                        <SheetTitle>Notes</SheetTitle>
+                        <SheetDescription className="sr-only">Your notes list</SheetDescription>
+                    </SheetHeader>
+                    <NotesListContent
+                        notes={notes}
+                        deletedNotes={deletedNotes}
+                        activeNote={activeNote}
+                        editorTitle={editorTitle}
+                        onSelectNote={handleSelectNote}
+                        onNewNote={handleNewNote}
+                    />
+                </SheetContent>
+            </Sheet>
 
             {/* ── Main Panel ── */}
             <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-card rounded-md shadow-sm border">
-                <div className="grid grid-cols-[20%_80%] flex-1 overflow-hidden min-h-0">
+                <div className="grid grid-cols-1 md:grid-cols-[25%_75%] flex-1 overflow-hidden min-h-0">
 
-                    {/* ── Left sidebar (note list) ── */}
-                    <div className="p-4 border-r overflow-y-auto min-h-0 flex flex-col gap-4">
-                        <div className="flex justify-between items-center">
-                            <span className="font-semibold text-lg shrink-0">Notes</span>
-                            <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={handleNewNote}
-                                title="New note"
-                            >
-                                <Plus />
-                            </Button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto flex flex-col gap-4">
-                            {/* All Notes */}
-                            <Collapsible defaultOpen>
-                                <CollapsibleTrigger className="flex items-center justify-between w-full p-2 text-sm font-semibold hover:bg-sidebar-accent transition-colors [&[data-state=open]>svg]:rotate-180">
-                                    All Notes
-                                    <ChevronDown className="size-4 shrink-0 transition-transform duration-200" />
-                                </CollapsibleTrigger>
-                                <CollapsibleContent className="mt-1 flex flex-col gap-2 px-1">
-                                    {/* Draft pill */}
-                                    {activeNote && isDraft(activeNote) && (
-                                        <div className="p-2 bg-sidebar-accent cursor-pointer transition-colors text-left flex flex-col border-b last:border-0 ring-1 ring-primary/30 rounded-sm">
-                                            <div className="flex justify-between gap-2">
-                                                <span className="font-medium text-sm truncate italic text-muted-foreground">
-                                                    {editorTitle || "Untitled"}
-                                                </span>
-                                                <span className="text-[10px] text-muted-foreground mt-1 shrink-0">New</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {notes.length === 0 && !(activeNote && isDraft(activeNote)) ? (
-                                        <div className="p-4 text-center text-sm text-muted-foreground italic">
-                                            No Notes
-                                        </div>
-                                    ) : notes.map((note) => (
-                                        <div
-                                            key={note.id}
-                                            onClick={() => handleSelectNote(note)}
-                                            className={cn(
-                                                "p-2 hover:bg-sidebar-accent cursor-pointer transition-colors text-left flex flex-col border-b last:border-0 rounded-sm",
-                                                activeNote && !isDraft(activeNote) && activeNote.id === note.id && "bg-sidebar-accent"
-                                            )}
-                                        >
-                                            <div className="flex justify-between gap-2">
-                                                <span className="font-medium text-sm truncate">{note.title}</span>
-                                                <span className="text-[10px] text-muted-foreground mt-1 shrink-0">{formatNoteDate(note.updated_at)}</span>
-                                            </div>
-                                            <span className="text-xs text-muted-foreground truncate">{extractTextFromBlockNote(note.content)}</span>
-                                        </div>
-                                    ))}
-                                </CollapsibleContent>
-                            </Collapsible>
-
-                            {/* Recently Deleted */}
-                            <Collapsible>
-                                <CollapsibleTrigger className="flex items-center justify-between w-full p-2 text-sm font-semibold hover:bg-sidebar-accent transition-colors [&[data-state=open]>svg]:rotate-180">
-                                    Recently Deleted
-                                    <ChevronDown className="size-4 shrink-0 transition-transform duration-200" />
-                                </CollapsibleTrigger>
-                                <CollapsibleContent className="mt-1 flex flex-col gap-2 px-1">
-                                    {deletedNotes.length === 0 ? (
-                                        <div className="p-4 text-center text-sm text-muted-foreground italic">
-                                            No Items
-                                        </div>
-                                    ) : deletedNotes.map((note) => (
-                                        <div
-                                            key={note.id}
-                                            onClick={() => handleSelectNote(note)}
-                                            className={cn(
-                                                "p-2 hover:bg-sidebar-accent cursor-pointer transition-colors text-left flex flex-col border-b last:border-0 opacity-60 rounded-sm",
-                                                activeNote && !isDraft(activeNote) && activeNote.id === note.id && "bg-sidebar-accent opacity-100"
-                                            )}
-                                        >
-                                            <div className="flex justify-between gap-2">
-                                                <span className="font-medium text-sm truncate line-through">{note.title}</span>
-                                                <span className="text-[10px] text-muted-foreground mt-1 shrink-0">{formatNoteDate(note.deleted_at!)}</span>
-                                            </div>
-                                            <span className="text-xs text-muted-foreground truncate">{extractTextFromBlockNote(note.content)}</span>
-                                        </div>
-                                    ))}
-                                </CollapsibleContent>
-                            </Collapsible>
-                        </div>
+                    {/* ── Left sidebar (note list) — hidden on mobile ── */}
+                    <div className="hidden md:flex p-4 border-r overflow-y-auto min-h-0 flex-col gap-4">
+                        <NotesListContent
+                            notes={notes}
+                            deletedNotes={deletedNotes}
+                            activeNote={activeNote}
+                            editorTitle={editorTitle}
+                            onSelectNote={handleSelectNote}
+                            onNewNote={handleNewNote}
+                        />
                     </div>
 
                     {/* ── Right: Editor ── */}
@@ -436,7 +502,7 @@ export function NotesClient({ initialNotes, initialDeletedNotes }: NotesClientPr
                                 </div>
 
                                 {/* ── BlockNote Editor ── */}
-                                <div className="overflow-y-auto min-h-0 ps-12 flex-1">
+                                <div className="overflow-y-auto min-h-0 ps-0 md:ps-12 flex-1">
                                     <EditorWrapper
                                         key={activeNote.id}
                                         initialContent={
