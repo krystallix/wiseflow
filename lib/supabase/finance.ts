@@ -5,7 +5,7 @@ const SCHEMA = 'risenwise'
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export type TransactionType = 'income' | 'expense' | 'transfer'
-export type BudgetPeriod = 'weekly' | 'monthly' | 'yearly'
+export type BudgetPeriod = 'weekly' | 'monthly' | 'yearly' | 'lifetime'
 export type DebtDirection = 'payable' | 'receivable'
 export type DebtStatus = 'active' | 'settled' | 'cancelled'
 
@@ -117,6 +117,8 @@ export type Debt = {
     created_at: string
     updated_at: string
     deleted_at: string | null
+    installment_months?: number | null
+    checked_months?: number[] | null
     contact?: Pick<Contact, 'id' | 'name' | 'avatar_url'>
 }
 
@@ -222,6 +224,29 @@ export async function createCategory(payload: Omit<Category, 'id' | 'user_id' | 
     return data
 }
 
+export async function updateCategory(id: string, payload: Partial<Omit<Category, 'id' | 'user_id' | 'owner'>>): Promise<Category> {
+    const sb = getClient()
+    const { data, error } = await sb
+        .schema(SCHEMA)
+        .from('categories')
+        .update({ ...payload, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+    const sb = getClient()
+    const { error } = await sb
+        .schema(SCHEMA)
+        .from('categories')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+    if (error) throw error
+}
+
 // ─── Transactions ────────────────────────────────────────────────────────────
 
 export async function getTransactions(opts?: { limit?: number; offset?: number; wallet_id?: string; type?: TransactionType; from?: string; to?: string }): Promise<Transaction[]> {
@@ -260,6 +285,19 @@ export async function createTransaction(payload: Omit<Transaction, 'id' | 'user_
     return data as Transaction
 }
 
+export async function updateTransaction(id: string, payload: Partial<Omit<Transaction, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'deleted_at' | 'wallet' | 'category' | 'transfer_wallet'>>): Promise<Transaction> {
+    const sb = getClient()
+    const { data, error } = await sb
+        .schema(SCHEMA)
+        .from('transactions')
+        .update({ ...payload, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select(`*, wallet:wallet_id(id,name,icon,color,currency), category:category_id(id,name,icon,color,type)`)
+        .single()
+    if (error) throw error
+    return data as Transaction
+}
+
 export async function deleteTransaction(id: string): Promise<void> {
     const sb = getClient()
     const { error } = await sb
@@ -292,6 +330,19 @@ export async function createBudget(payload: Omit<Budget, 'id' | 'user_id' | 'cre
         .schema(SCHEMA)
         .from('budgets')
         .insert({ ...payload, user_id: user.id })
+        .select('*, category:category_id(id,name,icon,color,type)')
+        .single()
+    if (error) throw error
+    return data as Budget
+}
+
+export async function updateBudget(id: string, payload: Partial<Omit<Budget, 'id' | 'user_id' | 'category' | 'spent'>>): Promise<Budget> {
+    const sb = getClient()
+    const { data, error } = await sb
+        .schema(SCHEMA)
+        .from('budgets')
+        .update({ ...payload, updated_at: new Date().toISOString() })
+        .eq('id', id)
         .select('*, category:category_id(id,name,icon,color,type)')
         .single()
     if (error) throw error
@@ -428,6 +479,19 @@ export async function createDebt(payload: Omit<Debt, 'id' | 'user_id' | 'paid_am
     return data as Debt
 }
 
+export async function updateDebt(id: string, payload: Partial<Pick<Debt, 'principal' | 'due_date' | 'description' | 'installment_months' | 'checked_months' | 'paid_amount' | 'status'>>): Promise<Debt> {
+    const sb = getClient()
+    const { data, error } = await sb
+        .schema(SCHEMA)
+        .from('debts')
+        .update({ ...payload, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single()
+    if (error) throw error
+    return data as Debt
+}
+
 export async function addDebtPayment(payload: Omit<DebtPayment, 'id' | 'user_id' | 'created_at'>): Promise<DebtPayment> {
     const sb = getClient()
     const { data: { user } } = await sb.auth.getUser()
@@ -440,6 +504,16 @@ export async function addDebtPayment(payload: Omit<DebtPayment, 'id' | 'user_id'
         .single()
     if (error) throw error
     return data
+}
+
+export async function deleteDebt(id: string): Promise<void> {
+    const sb = getClient()
+    const { error } = await sb
+        .schema(SCHEMA)
+        .from('debts')
+        .delete()
+        .eq('id', id)
+    if (error) throw error
 }
 
 // ─── Summary aggregates (client-side) ────────────────────────────────────────

@@ -1,7 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { Loader2Icon, Save, Plus, Wallet, Target, PiggyBank, Pencil, HandCoins, UserPlus, Tags, BadgeDollarSign, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, TrendingDown, TrendingUp, Banknote, Handshake } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import {
+    Loader2Icon, Save, Plus, Wallet, Target, PiggyBank, Pencil, HandCoins,
+    UserPlus, Tags, BadgeDollarSign, ArrowDownLeft, ArrowUpRight, ArrowLeftRight,
+    TrendingDown, TrendingUp, Banknote, Handshake, Trash2, CheckCircle2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { DynamicIcon } from '@/lib/dynamic-icon'
 import { Button } from '@/components/ui/button'
@@ -10,6 +14,11 @@ import { Label } from '@/components/ui/label'
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import {
+    InputGroup,
+    InputGroupAddon,
+    InputGroupInput,
+} from '@/components/ui/input-group'
 import {
     Dialog,
     DialogContent,
@@ -21,17 +30,25 @@ import {
 import {
     type Wallet as WalletType,
     type Category,
+    type Transaction,
     type TransactionType,
     type DebtDirection,
     type Contact,
+    type Budget,
+    type BudgetPeriod,
     createBudget,
+    updateBudget,
+    deleteBudget,
     updateWallet,
     createDebt,
     createContact,
     getContacts,
     createCategory,
+    updateCategory,
+    deleteCategory,
     addDebtPayment,
     updateContact,
+    updateTransaction,
 } from '@/lib/supabase/finance'
 
 // ─── Shared ───────────────────────────────────────────────────────────────────
@@ -59,6 +76,32 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
                 />
             ))}
         </div>
+    )
+}
+
+function NumericAmountInput({ value, onChange, disabled, id, placeholder = "0" }: { value: string, onChange: (v: string) => void, disabled?: boolean, id?: string, placeholder?: string }) {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const raw = e.target.value.replace(/\D/g, '')
+        onChange(raw)
+    }
+
+    const displayValue = value ? new Intl.NumberFormat('id-ID').format(parseInt(value)) : ''
+
+    return (
+        <InputGroup className="h-10">
+            <InputGroupAddon align="inline-start" className="bg-transparent border-r px-3">
+                <span className="text-xs font-bold opacity-70">Rp</span>
+            </InputGroupAddon>
+            <InputGroupInput
+                id={id}
+                value={displayValue}
+                onChange={handleInputChange}
+                placeholder={placeholder}
+                className="text-lg font-bold"
+                autoComplete="off"
+                disabled={disabled}
+            />
+        </InputGroup>
     )
 }
 
@@ -118,7 +161,6 @@ export function AddTransactionDialog({ open, onOpenChange, wallets, categories, 
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-                    {/* Type toggle — Lucide icon tabs */}
                     <div className="flex gap-1 bg-muted p-1 rounded-xl">
                         {([
                             { value: 'income', label: 'Income', icon: <ArrowDownLeft className="size-3.5" /> },
@@ -138,18 +180,28 @@ export function AddTransactionDialog({ open, onOpenChange, wallets, categories, 
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label htmlFor="tx-amount" className="text-xs font-medium">Amount (IDR)</Label>
+                        <Label htmlFor="tx-note" className="text-xs font-medium">Note (optional)</Label>
                         <Input
-                            id="tx-amount"
-                            value={amount}
-                            onChange={e => setAmount(e.target.value)}
-                            placeholder="0"
-                            type="number"
-                            className="text-lg font-bold"
+                            id="tx-note"
+                            value={note}
+                            onChange={e => setNote(e.target.value)}
+                            placeholder="e.g. Lunch at warung"
                             autoComplete="off"
                             disabled={loading}
                         />
                     </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="tx-amount" className="text-xs font-medium">Amount</Label>
+                        <NumericAmountInput
+                            id="tx-amount"
+                            value={amount}
+                            onChange={setAmount}
+                            disabled={loading}
+                        />
+                    </div>
+
+                    {/* Type toggle — Lucide icon tabs */}
 
                     <div className="space-y-1.5">
                         <Label htmlFor="tx-wallet" className="text-xs font-medium">
@@ -198,17 +250,7 @@ export function AddTransactionDialog({ open, onOpenChange, wallets, categories, 
                         </div>
                     )}
 
-                    <div className="space-y-1.5">
-                        <Label htmlFor="tx-note" className="text-xs font-medium">Note (optional)</Label>
-                        <Input
-                            id="tx-note"
-                            value={note}
-                            onChange={e => setNote(e.target.value)}
-                            placeholder="e.g. Lunch at warung"
-                            autoComplete="off"
-                            disabled={loading}
-                        />
-                    </div>
+
 
                     <div className="space-y-1.5">
                         <Label htmlFor="tx-date" className="text-xs font-medium">Date</Label>
@@ -231,6 +273,185 @@ export function AddTransactionDialog({ open, onOpenChange, wallets, categories, 
                                 : <Plus className="size-3.5" />
                             }
                             Save Transaction
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+// ─── Edit Transaction Dialog ───────────────────────────────────────────────────
+
+type EditTransactionProps = {
+    open: boolean
+    onOpenChange: (o: boolean) => void
+    transaction: Transaction
+    wallets: WalletType[]
+    categories: Category[]
+    onSave: (id: string, payload: any) => Promise<void>
+}
+
+export function EditTransactionDialog({ open, onOpenChange, transaction, wallets, categories, onSave }: EditTransactionProps) {
+    const [type, setType] = useState<TransactionType>(transaction.type)
+    const [walletId, setWalletId] = useState(transaction.wallet_id)
+    const [categoryId, setCategoryId] = useState(transaction.category_id ?? '')
+    const [amount, setAmount] = useState(Math.abs(transaction.amount).toString())
+    const [note, setNote] = useState(transaction.note ?? '')
+    const [date, setDate] = useState(transaction.date)
+    const [transferTo, setTransferTo] = useState(transaction.transfer_to_wallet_id ?? '')
+    const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+        if (open && transaction) {
+            setType(transaction.type)
+            setWalletId(transaction.wallet_id)
+            setCategoryId(transaction.category_id ?? '')
+            setAmount(Math.abs(transaction.amount).toString())
+            setNote(transaction.note ?? '')
+            setDate(transaction.date)
+            setTransferTo(transaction.transfer_to_wallet_id ?? '')
+        }
+    }, [open, transaction])
+
+    const filteredCats = categories.filter(c => c.type === type || type === 'transfer')
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        const n = parseFloat(amount)
+        if (!walletId) { toast.error('Select a wallet'); return }
+        if (isNaN(n) || n <= 0) { toast.error('Enter valid amount'); return }
+        if (type === 'transfer' && !transferTo) { toast.error('Select destination wallet'); return }
+        setLoading(true)
+        try {
+            await onSave(transaction.id, {
+                wallet_id: walletId,
+                category_id: categoryId || null,
+                type, amount: n,
+                note: note || null, date,
+                transfer_to_wallet_id: type === 'transfer' ? transferTo : null,
+            })
+            onOpenChange(false)
+        } finally { setLoading(false) }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md" transition={DIALOG_TRANSITION}>
+                <DialogHeader>
+                    <DialogTitle className="text-base font-semibold">Edit Transaction</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        Update transaction details.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+                    <div className="flex gap-1 bg-muted p-1 rounded-xl">
+                        {([
+                            { value: 'income', label: 'Income', icon: <ArrowDownLeft className="size-3.5" /> },
+                            { value: 'expense', label: 'Expense', icon: <ArrowUpRight className="size-3.5" /> },
+                            { value: 'transfer', label: 'Transfer', icon: <ArrowLeftRight className="size-3.5" /> },
+                        ] as const).map(({ value, label, icon }) => (
+                            <button
+                                key={value}
+                                type="button"
+                                onClick={() => setType(value)}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${type === value ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground/70'}`}
+                            >
+                                {icon}{label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="edit-tx-note" className="text-xs font-medium">Note (optional)</Label>
+                        <Input
+                            id="edit-tx-note"
+                            value={note}
+                            onChange={e => setNote(e.target.value)}
+                            placeholder="e.g. Lunch at warung"
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="edit-tx-amount" className="text-xs font-medium">Amount</Label>
+                        <NumericAmountInput
+                            id="edit-tx-amount"
+                            value={amount}
+                            onChange={setAmount}
+                            disabled={loading}
+                        />
+                    </div>
+
+
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="edit-tx-wallet" className="text-xs font-medium">
+                            {type === 'transfer' ? 'From Wallet' : 'Wallet'}
+                        </Label>
+                        <Select value={walletId} onValueChange={setWalletId} disabled={loading}>
+                            <SelectTrigger id="edit-tx-wallet" className="text-xs"><SelectValue placeholder="Select wallet" /></SelectTrigger>
+                            <SelectContent>
+                                {wallets.map(w => (
+                                    <SelectItem key={w.id} value={w.id} className="text-xs">{w.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {type === 'transfer' && (
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-tx-wallet-to" className="text-xs font-medium">To Wallet</Label>
+                            <Select value={transferTo} onValueChange={setTransferTo} disabled={loading}>
+                                <SelectTrigger id="edit-tx-wallet-to" className="text-xs"><SelectValue placeholder="Select wallet" /></SelectTrigger>
+                                <SelectContent>
+                                    {wallets.filter(w => w.id !== walletId).map(w => (
+                                        <SelectItem key={w.id} value={w.id} className="text-xs">{w.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    {type !== 'transfer' && filteredCats.length > 0 && (
+                        <div className="space-y-1.5">
+                            <Label htmlFor="edit-tx-category" className="text-xs font-medium">Category</Label>
+                            <Select value={categoryId} onValueChange={setCategoryId} disabled={loading}>
+                                <SelectTrigger id="edit-tx-category" className="text-xs"><SelectValue placeholder="Select category" /></SelectTrigger>
+                                <SelectContent>
+                                    {filteredCats.map(c => (
+                                        <SelectItem key={c.id} value={c.id} className="text-xs">
+                                            <span className="flex items-center gap-1.5">
+                                                <DynamicIcon name={c.icon} className="size-3" />
+                                                {c.name}
+                                            </span>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="edit-tx-date" className="text-xs font-medium">Date</Label>
+                        <Input
+                            id="edit-tx-date"
+                            value={date}
+                            onChange={e => setDate(e.target.value)}
+                            type="date"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <DialogFooter className="pt-1">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={loading}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" size="sm" disabled={!amount || loading}>
+                            {loading ? <Loader2Icon className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+                            Save Changes
                         </Button>
                     </DialogFooter>
                 </form>
@@ -305,13 +526,11 @@ export function AddWalletDialog({ open, onOpenChange, onSave }: AddWalletProps) 
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label htmlFor="wallet-balance" className="text-xs font-medium">Initial Balance (IDR)</Label>
-                        <Input
+                        <Label htmlFor="wallet-balance" className="text-xs font-medium">Initial Balance</Label>
+                        <NumericAmountInput
                             id="wallet-balance"
                             value={balance}
-                            onChange={e => setBalance(e.target.value)}
-                            type="number"
-                            autoComplete="off"
+                            onChange={setBalance}
                             disabled={loading}
                         />
                     </div>
@@ -399,14 +618,11 @@ export function AddGoalDialog({ open, onOpenChange, onSave }: AddGoalProps) {
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label htmlFor="goal-target" className="text-xs font-medium">Target amount (IDR)</Label>
-                        <Input
+                        <Label htmlFor="goal-target" className="text-xs font-medium">Target amount</Label>
+                        <NumericAmountInput
                             id="goal-target"
                             value={target}
-                            onChange={e => setTarget(e.target.value)}
-                            type="number"
-                            placeholder="5000000"
-                            autoComplete="off"
+                            onChange={setTarget}
                             disabled={loading}
                         />
                     </div>
@@ -454,7 +670,7 @@ type AddBudgetProps = {
     onSave: () => void
 }
 
-function getPeriodDates(period: 'weekly' | 'monthly' | 'yearly') {
+function getPeriodDates(period: 'weekly' | 'monthly' | 'yearly' | 'lifetime') {
     const now = new Date()
     if (period === 'monthly') {
         const start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
@@ -467,19 +683,22 @@ function getPeriodDates(period: 'weekly' | 'monthly' | 'yearly') {
         const endDate = new Date(startDate); endDate.setDate(startDate.getDate() + 6)
         return { period_start: startDate.toISOString().split('T')[0], period_end: endDate.toISOString().split('T')[0] }
     }
+    if (period === 'lifetime') {
+        return { period_start: '1970-01-01', period_end: '9999-12-31' }
+    }
     return { period_start: `${now.getFullYear()}-01-01`, period_end: `${now.getFullYear()}-12-31` }
 }
 
 export function AddBudgetDialog({ open, onOpenChange, categories, onSave }: AddBudgetProps) {
     const [categoryId, setCategoryId] = useState('')
-    const [period, setPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly')
+    const [period, setPeriod] = useState<'weekly' | 'monthly' | 'yearly' | 'lifetime'>('monthly')
     const [amount, setAmount] = useState('')
     const [loading, setLoading] = useState(false)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!categoryId) { toast.error('Select a category'); return }
-        const n = parseFloat(amount)
+        const n = parseFloat(amount.replace(/\./g, ''))
         if (isNaN(n) || n <= 0) { toast.error('Enter valid amount'); return }
         setLoading(true)
         try {
@@ -487,6 +706,7 @@ export function AddBudgetDialog({ open, onOpenChange, categories, onSave }: AddB
             toast.success('Budget created')
             setCategoryId(''); setAmount('')
             onSave()
+            onOpenChange(false)
         } catch (e: any) { toast.error(e.message) }
         finally { setLoading(false) }
     }
@@ -511,7 +731,7 @@ export function AddBudgetDialog({ open, onOpenChange, categories, onSave }: AddB
                         <Select value={categoryId} onValueChange={setCategoryId} disabled={loading}>
                             <SelectTrigger id="budget-category" className="text-xs"><SelectValue placeholder="Select expense category" /></SelectTrigger>
                             <SelectContent>
-                                {categories.map(c => (
+                                {categories.filter(c => c.type === 'expense').map(c => (
                                     <SelectItem key={c.id} value={c.id} className="text-xs">
                                         <span className="flex items-center gap-1.5">
                                             <DynamicIcon name={c.icon} className="size-3" />
@@ -528,7 +748,7 @@ export function AddBudgetDialog({ open, onOpenChange, categories, onSave }: AddB
                         <Select value={period} onValueChange={(v: any) => setPeriod(v)} disabled={loading}>
                             <SelectTrigger id="budget-period" className="text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                {(['weekly', 'monthly', 'yearly'] as const).map(p => (
+                                {(['weekly', 'monthly', 'yearly', 'lifetime'] as const).map(p => (
                                     <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
                                 ))}
                             </SelectContent>
@@ -536,14 +756,11 @@ export function AddBudgetDialog({ open, onOpenChange, categories, onSave }: AddB
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label htmlFor="budget-amount" className="text-xs font-medium">Budget amount (IDR)</Label>
-                        <Input
+                        <Label htmlFor="budget-amount" className="text-xs font-medium">Budget amount</Label>
+                        <NumericAmountInput
                             id="budget-amount"
                             value={amount}
-                            onChange={e => setAmount(e.target.value)}
-                            type="number"
-                            placeholder="1000000"
-                            autoComplete="off"
+                            onChange={setAmount}
                             disabled={loading}
                         />
                     </div>
@@ -559,6 +776,110 @@ export function AddBudgetDialog({ open, onOpenChange, categories, onSave }: AddB
                             }
                             Create Budget
                         </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+// ─── Edit Budget Dialog ───────────────────────────────────────────────────────
+
+type EditBudgetProps = {
+    open: boolean
+    onOpenChange: (o: boolean) => void
+    budget: Budget
+    onSave: () => void
+}
+
+export function EditBudgetDialog({ open, onOpenChange, budget, onSave }: EditBudgetProps) {
+    const [period, setPeriod] = useState<BudgetPeriod>(budget.period)
+    const [amount, setAmount] = useState(new Intl.NumberFormat('id-ID').format(budget.amount))
+    const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+        if (budget) {
+            setAmount(new Intl.NumberFormat('id-ID').format(budget.amount))
+            setPeriod(budget.period)
+        }
+    }, [budget])
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        const n = parseFloat(amount.replace(/\./g, ''))
+        if (isNaN(n) || n <= 0) { toast.error('Enter valid amount'); return }
+        setLoading(true)
+        try {
+            await updateBudget(budget.id, { period, amount: n, ...getPeriodDates(period) })
+            toast.success('Budget updated')
+            onSave()
+            onOpenChange(false)
+        } catch (e: any) { toast.error(e.message) }
+        finally { setLoading(false) }
+    }
+
+    const handleDelete = async () => {
+        if (!confirm('Are you sure you want to delete this budget?')) return
+        setLoading(true)
+        try {
+            await deleteBudget(budget.id)
+            toast.success('Budget deleted')
+            onSave()
+            onOpenChange(false)
+        } catch (e: any) { toast.error(e.message) }
+        finally { setLoading(false) }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="sm:max-w-md"
+                from="bottom"
+                transition={DIALOG_TRANSITION}
+            >
+                <DialogHeader>
+                    <DialogTitle className="text-base font-semibold">Edit Budget</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        Modify budget for {budget.category?.name}.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="edit-budget-period" className="text-xs font-medium">Period</Label>
+                        <Select value={period} onValueChange={(v: any) => setPeriod(v)} disabled={loading}>
+                            <SelectTrigger id="edit-budget-period" className="text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {(['weekly', 'monthly', 'yearly', 'lifetime'] as const).map(p => (
+                                    <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="edit-budget-amount" className="text-xs font-medium">Budget amount</Label>
+                        <NumericAmountInput
+                            id="edit-budget-amount"
+                            value={amount}
+                            onChange={setAmount}
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <DialogFooter className="pt-1 flex justify-between sm:justify-between items-center sm:gap-2">
+                        <Button type="button" variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:bg-destructive/10" disabled={loading}>
+                            Delete
+                        </Button>
+                        <div className="flex gap-2">
+                            <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={loading}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" size="sm" disabled={!amount || loading}>
+                                {loading ? <Loader2Icon className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+                                Save
+                            </Button>
+                        </div>
                     </DialogFooter>
                 </form>
             </DialogContent>
@@ -645,13 +966,11 @@ export function EditWalletDialog({ open, onOpenChange, wallet, onSave }: EditWal
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label htmlFor="edit-wallet-balance" className="text-xs font-medium">Balance (IDR)</Label>
-                        <Input
+                        <Label htmlFor="edit-wallet-balance" className="text-xs font-medium">Balance</Label>
+                        <NumericAmountInput
                             id="edit-wallet-balance"
                             value={balance}
-                            onChange={e => setBalance(e.target.value)}
-                            type="number"
-                            autoComplete="off"
+                            onChange={setBalance}
                             disabled={loading}
                         />
                     </div>
@@ -711,6 +1030,8 @@ export function AddDebtDialog({ open, onOpenChange, wallets, onSave }: AddDebtPr
     const [walletId, setWalletId] = useState(wallets.find(w => w.is_default)?.id ?? wallets[0]?.id ?? '__none__')
     const [dueDate, setDueDate] = useState('')
     const [description, setDescription] = useState('')
+    const [isInstallment, setIsInstallment] = useState(false)
+    const [installmentMonths, setInstallmentMonths] = useState('')
     const [loading, setLoading] = useState(false)
 
     const loadContacts = async () => {
@@ -722,9 +1043,14 @@ export function AddDebtDialog({ open, onOpenChange, wallets, onSave }: AddDebtPr
         } catch { /* ignore */ }
     }
 
+    useEffect(() => {
+        if (open && !contactsLoaded) {
+            loadContacts()
+        }
+    }, [open, contactsLoaded])
+
     const handleOpen = (o: boolean) => {
         onOpenChange(o)
-        if (o) loadContacts()
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -733,6 +1059,9 @@ export function AddDebtDialog({ open, onOpenChange, wallets, onSave }: AddDebtPr
         if (isNaN(n) || n <= 0) { toast.error('Enter valid amount'); return }
         setLoading(true)
         try {
+            const isInst = isInstallment && parseInt(installmentMonths) > 0;
+            const finalPrincipal = isInst ? n * parseInt(installmentMonths) : n;
+
             let resolvedContactId = contactId
             if (contactMode === 'new') {
                 if (!newName.trim()) { toast.error('Enter contact name'); return }
@@ -752,14 +1081,16 @@ export function AddDebtDialog({ open, onOpenChange, wallets, onSave }: AddDebtPr
                 contact_id: resolvedContactId,
                 wallet_id: walletId === '__none__' ? null : (walletId || null),
                 direction,
-                principal: n,
+                principal: finalPrincipal,
                 due_date: dueDate || null,
                 description: description.trim() || null,
+                installment_months: isInst ? parseInt(installmentMonths) : null,
             })
 
             toast.success(direction === 'payable' ? 'Debt recorded' : 'Loan recorded')
             setContactId(''); setNewName(''); setNewPhone('')
             setPrincipal(''); setDueDate(''); setDescription('')
+            setIsInstallment(false); setInstallmentMonths('')
             setContactMode('existing')
             onSave()
             onOpenChange(false)
@@ -797,6 +1128,18 @@ export function AddDebtDialog({ open, onOpenChange, wallets, onSave }: AddDebtPr
                                 {icon}{label}
                             </button>
                         ))}
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="debt-note" className="text-xs font-medium">Note (optional)</Label>
+                        <Input
+                            id="debt-note"
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            placeholder="e.g. Borrowed for rent"
+                            autoComplete="off"
+                            disabled={loading}
+                        />
                     </div>
 
                     {/* Contact */}
@@ -851,20 +1194,49 @@ export function AddDebtDialog({ open, onOpenChange, wallets, onSave }: AddDebtPr
                         )}
                     </div>
 
-                    {/* Amount */}
+
+
                     <div className="space-y-1.5">
-                        <Label htmlFor="debt-amount" className="text-xs font-medium">Amount (IDR)</Label>
-                        <Input
+                        <Label htmlFor="debt-amount" className="text-xs font-medium">
+                            {isInstallment ? 'Installment Amount (per month)' : 'Amount'}
+                        </Label>
+                        <NumericAmountInput
                             id="debt-amount"
                             value={principal}
-                            onChange={e => setPrincipal(e.target.value)}
-                            type="number"
-                            placeholder="0"
-                            className="text-lg font-bold"
-                            autoComplete="off"
+                            onChange={setPrincipal}
                             disabled={loading}
                         />
                     </div>
+
+                    {/* Installment Toggle */}
+                    <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium cursor-pointer" onClick={() => setIsInstallment(!isInstallment)}>
+                            Pay in Installments?
+                        </Label>
+                        <button
+                            type="button"
+                            onClick={() => setIsInstallment(!isInstallment)}
+                            className={`w-8 h-4 rounded-full transition-colors relative ${isInstallment ? 'bg-primary' : 'bg-muted'}`}
+                        >
+                            <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${isInstallment ? 'translate-x-4' : ''}`} />
+                        </button>
+                    </div>
+
+                    {isInstallment && (
+                        <div className="space-y-1.5">
+                            <Label htmlFor="debt-installments" className="text-xs font-medium">Number of Months</Label>
+                            <Input
+                                id="debt-installments"
+                                value={installmentMonths}
+                                onChange={e => setInstallmentMonths(e.target.value)}
+                                type="number"
+                                placeholder="e.g. 12"
+                                className="text-sm"
+                                autoComplete="off"
+                                disabled={loading}
+                            />
+                        </div>
+                    )}
 
                     {/* Wallet */}
                     {wallets.length > 0 && (
@@ -894,19 +1266,6 @@ export function AddDebtDialog({ open, onOpenChange, wallets, onSave }: AddDebtPr
                             value={dueDate}
                             onChange={e => setDueDate(e.target.value)}
                             type="date"
-                            disabled={loading}
-                        />
-                    </div>
-
-                    {/* Note */}
-                    <div className="space-y-1.5">
-                        <Label htmlFor="debt-note" className="text-xs font-medium">Note (optional)</Label>
-                        <Input
-                            id="debt-note"
-                            value={description}
-                            onChange={e => setDescription(e.target.value)}
-                            placeholder="e.g. Borrowed for rent"
-                            autoComplete="off"
                             disabled={loading}
                         />
                     </div>
@@ -945,26 +1304,35 @@ const CATEGORY_ICONS = [
 type AddCategoryProps = {
     open: boolean
     onOpenChange: (o: boolean) => void
+    categories: Category[]
     onSave: () => void
 }
 
-export function AddCategoryDialog({ open, onOpenChange, onSave }: AddCategoryProps) {
+export function AddCategoryDialog({ open, onOpenChange, categories, onSave }: AddCategoryProps) {
     const [name, setName] = useState('')
     const [type, setType] = useState<'income' | 'expense'>('expense')
     const [icon, setIcon] = useState(CATEGORY_ICONS[0])
     const [color, setColor] = useState(CATEGORY_COLORS[0])
+    const [editingId, setEditingId] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
+
+    // Only show user categories in the list
+    const userCategories = categories.filter(c => c.owner === 'user')
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!name.trim()) { toast.error('Enter category name'); return }
         setLoading(true)
         try {
-            await createCategory({ name: name.trim(), type, icon, color })
-            toast.success('Category created')
-            setName(''); setIcon(CATEGORY_ICONS[0]); setColor(CATEGORY_COLORS[0])
+            if (editingId) {
+                await updateCategory(editingId, { name: name.trim(), type, icon, color })
+                toast.success('Category updated')
+            } else {
+                await createCategory({ name: name.trim(), type, icon, color })
+                toast.success('Category created')
+            }
+            resetForm()
             onSave()
-            onOpenChange(false)
         } catch (err: any) {
             toast.error(err.message)
         } finally {
@@ -972,104 +1340,143 @@ export function AddCategoryDialog({ open, onOpenChange, onSave }: AddCategoryPro
         }
     }
 
+    const resetForm = () => {
+        setName('')
+        setType('expense')
+        setIcon(CATEGORY_ICONS[0])
+        setColor(CATEGORY_COLORS[0])
+        setEditingId(null)
+    }
+
+    const handleEdit = (c: Category) => {
+        setName(c.name)
+        setType(c.type as any)
+        setIcon(c.icon || CATEGORY_ICONS[0])
+        setColor(c.color || CATEGORY_COLORS[0])
+        setEditingId(c.id)
+    }
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Delete this category? It will no longer show in lists, but existing transactions will keep it.')) return
+        try {
+            await deleteCategory(id)
+            toast.success('Category deleted')
+            onSave()
+        } catch (err: any) {
+            toast.error(err.message)
+        }
+    }
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md" transition={DIALOG_TRANSITION}>
-                <DialogHeader>
-                    <DialogTitle className="text-base font-semibold">New Category</DialogTitle>
-                    <DialogDescription className="text-xs text-muted-foreground">
-                        Add a custom category for income or expense transactions.
-                    </DialogDescription>
-                </DialogHeader>
+            <DialogContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col p-0" transition={DIALOG_TRANSITION}>
+                <div className="p-6 overflow-y-auto no-scrollbar space-y-4">
+                    <DialogHeader>
+                        <DialogTitle className="text-base font-semibold">{editingId ? 'Edit Category' : 'Manage Categories'}</DialogTitle>
+                        <DialogDescription className="text-xs text-muted-foreground">
+                            Create or modify your custom transaction categories.
+                        </DialogDescription>
+                    </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-                    {/* Type toggle — Lucide icon tabs */}
-                    <div className="flex gap-1 bg-muted p-1 rounded-xl">
-                        {([
-                            { value: 'expense', label: 'Expense', icon: <TrendingDown className="size-3.5" /> },
-                            { value: 'income', label: 'Income', icon: <TrendingUp className="size-3.5" /> },
-                        ] as const).map(({ value, label, icon }) => (
-                            <button
-                                key={value}
-                                type="button"
-                                onClick={() => setType(value)}
-                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${type === value ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground/70'
-                                    }`}
-                            >
-                                {icon}{label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Name */}
-                    <div className="space-y-1.5">
-                        <Label htmlFor="cat-name" className="text-xs font-medium">Category name</Label>
-                        <Input
-                            id="cat-name"
-                            value={name}
-                            onChange={e => setName(e.target.value)}
-                            placeholder="e.g. Groceries"
-                            autoFocus
-                            autoComplete="off"
-                            disabled={loading}
-                        />
-                    </div>
-
-                    {/* Icon picker */}
-                    <div className="space-y-1.5">
-                        <Label className="text-xs font-medium">Icon</Label>
-                        <div className="flex flex-wrap gap-1.5">
-                            {CATEGORY_ICONS.map(i => (
+                    <form id="category-form" onSubmit={handleSubmit} className="space-y-4 pt-1">
+                        <div className="flex gap-1 bg-muted p-1 rounded-xl">
+                            {([
+                                { value: 'expense', label: 'Expense', icon: <TrendingDown className="size-3.5" /> },
+                                { value: 'income', label: 'Income', icon: <TrendingUp className="size-3.5" /> },
+                            ] as const).map(({ value, label, icon }) => (
                                 <button
-                                    key={i}
-                                    type="button"
-                                    onClick={() => setIcon(i)}
-                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all text-foreground ${icon === i ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted hover:bg-muted/80'}`}
+                                    key={value} type="button" onClick={() => setType(value)}
+                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${type === value ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground/70'}`}
                                 >
-                                    <DynamicIcon name={i} className="size-3.5" />
+                                    {icon}{label}
                                 </button>
                             ))}
                         </div>
-                    </div>
 
-                    {/* Color picker */}
-                    <div className="space-y-1.5">
-                        <Label className="text-xs font-medium">Color</Label>
-                        <div className="flex gap-2 flex-wrap">
-                            {CATEGORY_COLORS.map(c => (
-                                <button
-                                    key={c}
-                                    type="button"
-                                    onClick={() => setColor(c)}
-                                    className={`w-7 h-7 rounded-lg transition-all ${color === c ? 'ring-2 ring-offset-2 ring-primary scale-110' : ''}`}
-                                    style={{ background: c }}
-                                />
-                            ))}
+                        <div className="space-y-1.5">
+                            <Label htmlFor="cat-name" className="text-xs font-medium">Category name</Label>
+                            <Input id="cat-name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Groceries" disabled={loading} autoComplete="off" />
                         </div>
-                    </div>
 
-                    {/* Preview */}
-                    <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-xl">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: color + '33' }}>
-                            <span style={{ color }}><DynamicIcon name={icon} className="size-3.5" /></span>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">Icon</Label>
+                            <div className="flex flex-wrap gap-1.5">
+                                {CATEGORY_ICONS.map(i => (
+                                    <button
+                                        key={i} type="button" onClick={() => setIcon(i)}
+                                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${icon === i ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted hover:bg-muted/80'}`}
+                                    >
+                                        <DynamicIcon name={i} className="size-3.5" />
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                        <span className="text-xs font-semibold">{name || 'Preview'}</span>
-                        <span className="text-[10px] text-muted-foreground ml-auto capitalize">{type}</span>
-                    </div>
 
-                    <DialogFooter className="pt-1">
-                        <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={loading}>
-                            Cancel
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">Color</Label>
+                            <div className="flex gap-2 flex-wrap">
+                                {CATEGORY_COLORS.map(c => (
+                                    <button
+                                        key={c} type="button" onClick={() => setColor(c)}
+                                        className={`w-7 h-7 rounded-lg transition-all ${color === c ? 'ring-2 ring-offset-2 ring-primary scale-110' : ''}`}
+                                        style={{ background: c }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-xl">
+                            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: color + '33' }}>
+                                <span style={{ color }}><DynamicIcon name={icon} className="size-3.5" /></span>
+                            </div>
+                            <span className="text-xs font-semibold">{name || 'Preview'}</span>
+                            <span className="text-2xs text-muted-foreground ml-auto capitalize">{type}</span>
+                        </div>
+                    </form>
+
+                    {/* Category List */}
+                    {userCategories.length > 0 && (
+                        <div className="pt-4 border-t space-y-3">
+                            <p className="text-2xs font-bold text-muted-foreground uppercase tracking-wider">Custom Categories</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                {userCategories.map(c => (
+                                    <div key={c.id} className="group flex items-center gap-2 p-2 rounded-xl bg-muted/40 hover:bg-muted transition-colors border border-transparent hover:border-border">
+                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: (c.color || '#ccc') + '33' }}>
+                                            <span style={{ color: c.color || '' }}><DynamicIcon name={c.icon || 'Tags'} className="size-3.5" /></span>
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-semibold truncate leading-tight">{c.name}</p>
+                                            <p className="text-3xs text-muted-foreground lowercase leading-tight">{c.type}</p>
+                                        </div>
+                                        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(c)}><Pencil className="size-3" /></Button>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => handleDelete(c.id)}><Trash2 className="size-3" /></Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <DialogFooter className="p-4 bg-muted/30 border-t flex flex-row justify-between items-center sm:gap-2">
+                    {editingId ? (
+                        <Button type="button" variant="ghost" size="sm" onClick={resetForm} className="text-xs h-9">
+                            Cancel Edit
                         </Button>
-                        <Button type="submit" size="sm" disabled={!name.trim() || loading}>
-                            {loading
-                                ? <Loader2Icon className="size-3.5 animate-spin" />
-                                : <Tags className="size-3.5" />
-                            }
-                            Create Category
+                    ) : (
+                        <div />
+                    )}
+                    <div className="flex gap-2">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="text-xs h-9">
+                            Close
                         </Button>
-                    </DialogFooter>
-                </form>
+                        <Button form="category-form" type="submit" size="sm" className="text-xs h-9 px-4" disabled={!name.trim() || loading}>
+                            {loading ? <Loader2Icon className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+                            {editingId ? 'Save' : 'Add'}
+                        </Button>
+                    </div>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     )
@@ -1134,16 +1541,23 @@ export function RecordPaymentDialog({ open, onOpenChange, debt, wallets, onSave 
 
                 <form onSubmit={handleSubmit} className="space-y-4 pt-1">
                     <div className="space-y-1.5">
-                        <Label htmlFor="pay-amount" className="text-xs font-medium">Amount (IDR)</Label>
+                        <Label htmlFor="pay-note" className="text-xs font-medium">Note (optional)</Label>
                         <Input
+                            id="pay-note"
+                            value={note}
+                            onChange={e => setNote(e.target.value)}
+                            placeholder="e.g. Partial payment"
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="pay-amount" className="text-xs font-medium">Amount</Label>
+                        <NumericAmountInput
                             id="pay-amount"
                             value={amount}
-                            onChange={e => setAmount(e.target.value)}
-                            type="number"
-                            placeholder="0"
-                            className="text-lg font-bold"
-                            autoFocus
-                            autoComplete="off"
+                            onChange={setAmount}
                             disabled={loading}
                         />
                     </div>
@@ -1174,18 +1588,6 @@ export function RecordPaymentDialog({ open, onOpenChange, debt, wallets, onSave 
                             value={paidAt}
                             onChange={e => setPaidAt(e.target.value)}
                             type="date"
-                            disabled={loading}
-                        />
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <Label htmlFor="pay-note" className="text-xs font-medium">Note (optional)</Label>
-                        <Input
-                            id="pay-note"
-                            value={note}
-                            onChange={e => setNote(e.target.value)}
-                            placeholder="e.g. Partial payment"
-                            autoComplete="off"
                             disabled={loading}
                         />
                     </div>
