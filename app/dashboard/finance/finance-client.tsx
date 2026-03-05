@@ -6,6 +6,7 @@ import {
     ArrowLeftRight, Target, CreditCard, PiggyBank,
     Trash2, CheckCircle2, Clock, AlertCircle, X,
     DollarSign, BarChart3, Banknote, Receipt, Filter, Pencil, BadgeDollarSign, Tags,
+    LayoutGrid, LayoutList,
 } from 'lucide-react'
 import { DynamicIcon } from '@/lib/dynamic-icon'
 import { Button } from '@/components/ui/button'
@@ -23,7 +24,7 @@ import {
     createTransaction, createWallet, createSavingGoal, updateSavingGoal, deleteSavingGoal,
     deleteTransaction, deleteWallet, computeSummary,
     type Wallet as WalletType, type Transaction, type Budget, type SavingGoal,
-    type Debt, type Category, type TransactionType,
+    type Debt, type Category, type TransactionType, type Contact,
 } from '@/lib/supabase/finance'
 import {
     AddTransactionDialog,
@@ -33,6 +34,7 @@ import {
     AddDebtDialog,
     AddCategoryDialog,
     EditWalletDialog,
+    EditContactDialog,
     RecordPaymentDialog,
 } from '@/components/finance/dialogs'
 
@@ -59,6 +61,7 @@ export default function FinanceClient() {
     const [openDebt, setOpenDebt] = useState(false)
     const [openCategory, setOpenCategory] = useState(false)
     const [payDebt, setPayDebt] = useState<Debt | null>(null)
+    const [editContact, setEditContact] = useState<Contact | null>(null)
     const [editWallet, setEditWallet] = useState<WalletType | null>(null)
 
     const fetchAll = useCallback(async () => {
@@ -176,7 +179,7 @@ export default function FinanceClient() {
                     </TabsContent>
 
                     <TabsContent value="debts">
-                        <DebtsPanel debts={debts} onRefresh={fetchAll} onAdd={() => setOpenDebt(true)} onPay={setPayDebt} />
+                        <DebtsPanel debts={debts} onRefresh={fetchAll} onAdd={() => setOpenDebt(true)} onPay={setPayDebt} onEditContact={(d) => setEditContact(d.contact as any)} />
                     </TabsContent>
                 </TabsContents>
             </Tabs>
@@ -251,6 +254,15 @@ export default function FinanceClient() {
                     }}
                     wallets={wallets}
                     onSave={() => { setPayDebt(null); fetchAll() }}
+                />
+            )}
+
+            {editContact && (
+                <EditContactDialog
+                    open={!!editContact}
+                    onOpenChange={(o) => { if (!o) setEditContact(null) }}
+                    contact={editContact}
+                    onSave={() => { setEditContact(null); fetchAll() }}
                 />
             )}
         </div>
@@ -744,8 +756,15 @@ function GoalCard({ goal, onUpdate, onDelete }: {
 
 // ─── Debts Panel ──────────────────────────────────────────────────────────────
 
-function DebtsPanel({ debts, onRefresh, onAdd, onPay }: { debts: Debt[]; onRefresh: () => void; onAdd: () => void; onPay: (d: Debt) => void }) {
+function DebtsPanel({ debts, onRefresh, onAdd, onPay, onEditContact }: {
+    debts: Debt[]
+    onRefresh: () => void
+    onAdd: () => void
+    onPay: (d: Debt) => void
+    onEditContact: (d: Debt) => void
+}) {
     const [filter, setFilter] = useState<'all' | 'payable' | 'receivable'>('all')
+    const [view, setView] = useState<'card' | 'list'>('card')
     const filtered = filter === 'all' ? debts : debts.filter(d => d.direction === filter)
     const filterLabel: Record<string, string> = { all: 'All', payable: 'I Owe', receivable: 'They Owe Me' }
 
@@ -753,7 +772,24 @@ function DebtsPanel({ debts, onRefresh, onAdd, onPay }: { debts: Debt[]; onRefre
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sm">Debts &amp; Loans</h3>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                    {/* View toggle */}
+                    <div className="flex gap-0.5 bg-muted p-0.5 rounded-lg">
+                        <button
+                            type="button"
+                            onClick={() => setView('card')}
+                            className={`p-1.5 rounded-md transition-all ${view === 'card' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                        >
+                            <LayoutGrid className="size-3.5" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setView('list')}
+                            className={`p-1.5 rounded-md transition-all ${view === 'list' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                        >
+                            <LayoutList className="size-3.5" />
+                        </button>
+                    </div>
                     <Button size="sm" variant="outline" className="h-7 text-xs rounded-xl gap-1" onClick={onAdd}>
                         <Plus className="size-3" /> Add
                     </Button>
@@ -782,78 +818,139 @@ function DebtsPanel({ debts, onRefresh, onAdd, onPay }: { debts: Debt[]; onRefre
                         <button onClick={onAdd} className="text-primary font-medium hover:underline">Add your first debt or loan</button>
                     </p>
                 </div>
+            ) : view === 'card' ? (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    {filtered.map(d => <DebtCard key={d.id} debt={d} onPay={() => onPay(d)} onEditContact={() => onEditContact(d)} />)}
+                </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {filtered.map(d => <DebtCard key={d.id} debt={d} onPay={() => onPay(d)} />)}
+                <div className="bg-card rounded-2xl shadow-sm divide-y divide-border overflow-hidden">
+                    {filtered.map(d => <DebtRow key={d.id} debt={d} onPay={() => onPay(d)} onEditContact={() => onEditContact(d)} />)}
                 </div>
             )}
         </div>
     )
 }
 
-function DebtCard({ debt, onPay }: { debt: Debt; onPay: () => void }) {
+// ─── Debt Card (compact, 4-col) ────────────────────────────────────────────────
+
+function DebtCard({ debt, onPay, onEditContact }: { debt: Debt; onPay: () => void; onEditContact: () => void }) {
     const remaining = debt.principal - debt.paid_amount
     const pct = Math.min((debt.paid_amount / debt.principal) * 100, 100)
     const isPayable = debt.direction === 'payable'
-    const statusIcons = {
-        active: <Clock className="size-3" />,
-        settled: <CheckCircle2 className="size-3" />,
-        cancelled: <X className="size-3" />,
-    }
     const statusColors = {
         active: 'text-amber-500 bg-amber-500/10',
         settled: 'text-emerald-500 bg-emerald-500/10',
         cancelled: 'text-muted-foreground bg-muted',
     }
+    const statusIcon = { active: <Clock className="size-2.5" />, settled: <CheckCircle2 className="size-2.5" />, cancelled: <X className="size-2.5" /> }
 
     return (
-        <div className="bg-card rounded-2xl p-5 shadow-sm space-y-4">
-            <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+        <div className="bg-card rounded-2xl p-3.5 shadow-sm space-y-2.5">
+            {/* Header */}
+            <div className="flex items-center justify-between gap-1">
+                <button
+                    onClick={onEditContact}
+                    className="flex items-center gap-2 min-w-0 group"
+                    title="Edit contact"
+                >
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0 group-hover:bg-primary/20 transition-colors">
                         {debt.contact?.name?.charAt(0).toUpperCase() ?? 'U'}
                     </div>
-                    <div>
-                        <p className="text-sm font-bold">{debt.contact?.name ?? 'Unknown'}</p>
-                        <p className="text-[10px] text-muted-foreground">{isPayable ? 'You owe them' : 'They owe you'}</p>
+                    <div className="min-w-0">
+                        <p className="text-xs font-bold truncate leading-none">{debt.contact?.name ?? 'Unknown'}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{isPayable ? 'I owe' : 'Owes me'}</p>
                     </div>
-                </div>
-                <span className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${statusColors[debt.status]}`}>
-                    {statusIcons[debt.status]} {debt.status}
+                </button>
+                <span className={`flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${statusColors[debt.status]}`}>
+                    {statusIcon[debt.status]}
                 </span>
             </div>
 
+            {/* Amount */}
             <div>
-                <div className="flex justify-between text-xs mb-1.5">
-                    <span className="text-muted-foreground">Paid</span>
-                    <span className="font-semibold">{fmt(debt.paid_amount)} / {fmt(debt.principal)}</span>
-                </div>
+                <p className={`text-sm font-bold tabular-nums leading-none ${isPayable ? 'text-rose-500' : 'text-emerald-500'}`}>
+                    {fmt(remaining)}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">of {fmt(debt.principal)}</p>
+            </div>
+
+            {/* Progress */}
+            <div className="w-full bg-muted rounded-full h-1">
+                <div className={`h-1 rounded-full ${isPayable ? 'bg-rose-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }} />
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between">
+                {debt.due_date
+                    ? <span className="text-[10px] text-muted-foreground">{debt.due_date}</span>
+                    : <span />}
+                {debt.status === 'active' && remaining > 0 && (
+                    <button onClick={onPay} className="flex items-center gap-0.5 text-[10px] font-semibold text-primary hover:underline">
+                        <BadgeDollarSign className="size-2.5" /> Pay
+                    </button>
+                )}
+            </div>
+        </div>
+    )
+}
+
+// ─── Debt Row (list view) ─────────────────────────────────────────────────────
+
+function DebtRow({ debt, onPay, onEditContact }: { debt: Debt; onPay: () => void; onEditContact: () => void }) {
+    const remaining = debt.principal - debt.paid_amount
+    const pct = Math.min((debt.paid_amount / debt.principal) * 100, 100)
+    const isPayable = debt.direction === 'payable'
+    const statusColors = {
+        active: 'text-amber-500',
+        settled: 'text-emerald-500',
+        cancelled: 'text-muted-foreground',
+    }
+    const statusIcon = {
+        active: <Clock className="size-3" />,
+        settled: <CheckCircle2 className="size-3" />,
+        cancelled: <X className="size-3" />,
+    }
+
+    return (
+        <div className="flex items-center gap-3 px-4 py-2.5 group hover:bg-muted/40 transition-colors">
+            {/* Avatar */}
+            <button onClick={onEditContact} className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0 hover:bg-primary/20 transition-colors" title="Edit contact">
+                {debt.contact?.name?.charAt(0).toUpperCase() ?? 'U'}
+            </button>
+
+            {/* Name + direction */}
+            <div className="w-28 flex-shrink-0 min-w-0">
+                <p className="text-xs font-semibold truncate">{debt.contact?.name ?? 'Unknown'}</p>
+                <p className="text-[10px] text-muted-foreground">{isPayable ? 'I owe' : 'Owes me'}</p>
+            </div>
+
+            {/* Progress bar */}
+            <div className="flex-1 min-w-0">
                 <div className="w-full bg-muted rounded-full h-1.5">
                     <div className={`h-1.5 rounded-full ${isPayable ? 'bg-rose-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }} />
                 </div>
             </div>
 
-            <div className="flex justify-between items-center">
-                <div>
-                    <p className="text-[10px] text-muted-foreground">Remaining</p>
-                    <p className={`text-sm font-bold ${isPayable ? 'text-rose-500' : 'text-emerald-500'}`}>{fmt(remaining)}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                    {debt.due_date && (
-                        <div className="text-right">
-                            <p className="text-[10px] text-muted-foreground">Due</p>
-                            <p className="text-xs font-semibold">{debt.due_date}</p>
-                        </div>
-                    )}
-                    {debt.status === 'active' && remaining > 0 && (
-                        <button
-                            onClick={onPay}
-                            className="flex items-center gap-1 text-[10px] font-semibold text-primary hover:underline mt-0.5"
-                        >
-                            <BadgeDollarSign className="size-3" /> Record payment
-                        </button>
-                    )}
-                </div>
+            {/* Remaining */}
+            <p className={`text-xs font-bold tabular-nums w-28 text-right flex-shrink-0 ${isPayable ? 'text-rose-500' : 'text-emerald-500'}`}>
+                {fmt(remaining)}
+            </p>
+
+            {/* Due */}
+            <p className="text-[10px] text-muted-foreground w-20 text-right flex-shrink-0">
+                {debt.due_date ?? '—'}
+            </p>
+
+            {/* Status */}
+            <span className={`${statusColors[debt.status]} flex-shrink-0`}>{statusIcon[debt.status]}</span>
+
+            {/* Actions */}
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                {debt.status === 'active' && remaining > 0 && (
+                    <button onClick={onPay} className="text-[10px] font-semibold text-primary hover:underline flex items-center gap-0.5">
+                        <BadgeDollarSign className="size-3" /> Pay
+                    </button>
+                )}
             </div>
         </div>
     )

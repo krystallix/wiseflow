@@ -387,6 +387,19 @@ export async function createContact(payload: Omit<Contact, 'id' | 'user_id' | 'c
     return data
 }
 
+export async function updateContact(id: string, payload: Partial<Pick<Contact, 'name' | 'phone' | 'email' | 'note'>>): Promise<Contact> {
+    const sb = getClient()
+    const { data, error } = await sb
+        .schema(SCHEMA)
+        .from('contacts')
+        .update({ ...payload, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single()
+    if (error) throw error
+    return data
+}
+
 // ─── Debts ────────────────────────────────────────────────────────────────────
 
 export async function getDebts(): Promise<Debt[]> {

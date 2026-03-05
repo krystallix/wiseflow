@@ -31,6 +31,7 @@ import {
     getContacts,
     createCategory,
     addDebtPayment,
+    updateContact,
 } from '@/lib/supabase/finance'
 
 // ─── Shared ───────────────────────────────────────────────────────────────────
@@ -1199,6 +1200,131 @@ export function RecordPaymentDialog({ open, onOpenChange, debt, wallets, onSave 
                                 : <BadgeDollarSign className="size-3.5" />
                             }
                             Record Payment
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+// ─── Edit Contact Dialog ───────────────────────────────────────────────────────
+
+type EditContactProps = {
+    open: boolean
+    onOpenChange: (o: boolean) => void
+    contact: Contact
+    onSave: () => void
+}
+
+export function EditContactDialog({ open, onOpenChange, contact, onSave }: EditContactProps) {
+    const [name, setName] = useState(contact.name)
+    const [phone, setPhone] = useState(contact.phone ?? '')
+    const [email, setEmail] = useState(contact.email ?? '')
+    const [note, setNote] = useState(contact.note ?? '')
+    const [loading, setLoading] = useState(false)
+
+    // Sync fields when contact changes
+    const prevId = contact.id
+    if (name === contact.name && prevId !== contact.id) {
+        setName(contact.name)
+        setPhone(contact.phone ?? '')
+        setEmail(contact.email ?? '')
+        setNote(contact.note ?? '')
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!name.trim()) { toast.error('Enter contact name'); return }
+        setLoading(true)
+        try {
+            await updateContact(contact.id, {
+                name: name.trim(),
+                phone: phone.trim() || null,
+                email: email.trim() || null,
+                note: note.trim() || null,
+            })
+            toast.success('Contact updated')
+            onSave()
+            onOpenChange(false)
+        } catch (err: any) {
+            toast.error(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-sm" transition={DIALOG_TRANSITION}>
+                <DialogHeader>
+                    <DialogTitle className="text-base font-semibold">Edit Contact</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        Update contact details.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="ec-name" className="text-xs font-medium">Name *</Label>
+                        <Input
+                            id="ec-name"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            placeholder="Contact name"
+                            autoFocus
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="ec-phone" className="text-xs font-medium">Phone</Label>
+                        <Input
+                            id="ec-phone"
+                            value={phone}
+                            onChange={e => setPhone(e.target.value)}
+                            placeholder="+62 ..."
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="ec-email" className="text-xs font-medium">Email</Label>
+                        <Input
+                            id="ec-email"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            type="email"
+                            placeholder="email@example.com"
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="ec-note" className="text-xs font-medium">Note</Label>
+                        <Input
+                            id="ec-note"
+                            value={note}
+                            onChange={e => setNote(e.target.value)}
+                            placeholder="e.g. Schoolmate"
+                            autoComplete="off"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <DialogFooter className="pt-1">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={loading}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" size="sm" disabled={!name.trim() || loading}>
+                            {loading
+                                ? <Loader2Icon className="size-3.5 animate-spin" />
+                                : <Pencil className="size-3.5" />
+                            }
+                            Save Contact
                         </Button>
                     </DialogFooter>
                 </form>
