@@ -153,6 +153,27 @@ create table risenwise.notes (
 
 ---
 
+### `weekly_tasks`
+Recurring weekly tasks assigned to a specific day of the week (0–6), plus a special "Today's Priorities" slot (7) that resets daily.
+
+```sql
+create table risenwise.weekly_tasks (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid not null references auth.users(id) on delete cascade,
+  day_of_week     smallint not null check (day_of_week >= 0 and day_of_week <= 7),
+                  -- 0 = Sunday, 1 = Monday, … 6 = Saturday, 7 = daily priorities
+  title           text not null,
+  is_done         boolean default false,
+  sort_order      int default 0,
+  last_reset_at   timestamptz default now(),  -- tracks the last reset (weekly for 0–6, daily for 7)
+  created_at      timestamptz default now(),
+  updated_at      timestamptz default now(),
+  deleted_at      timestamptz default null
+);
+```
+
+---
+
 ## Row Level Security (RLS)
 
 Enable RLS on all tables — users can only access their own data.
@@ -165,6 +186,7 @@ alter table risenwise.task_comments     enable row level security;
 alter table risenwise.task_attachments  enable row level security;
 alter table risenwise.notifications     enable row level security;
 alter table risenwise.notes             enable row level security;
+alter table risenwise.weekly_tasks      enable row level security;
 ```
 
 ### Policies
@@ -198,6 +220,10 @@ create policy "Owner only" on risenwise.notifications
 
 -- Notes
 create policy "Owner only" on risenwise.notes
+  for all using ((select auth.uid()) = user_id);
+
+-- Weekly Tasks
+create policy "Owner only" on risenwise.weekly_tasks
   for all using ((select auth.uid()) = user_id);
 ```
 
@@ -289,6 +315,11 @@ create index idx_notifications_user_unread
 create index idx_notes_user
   on risenwise.notes (user_id)
   where deleted_at is null;
+
+-- weekly_tasks: fetch active tasks by user and day
+create index idx_weekly_tasks_user_day
+  on risenwise.weekly_tasks (user_id, day_of_week)
+  where deleted_at is null;
 ```
 
 ---
@@ -304,3 +335,4 @@ create index idx_notes_user
 | 2026-02-26 | Added `deleted_at` to all tables for soft delete support |
 | 2026-02-26 | Added partial indexes on all hot query paths |
 | 2026-03-03 | Added `notes` table with RLS and index |
+| 2026-03-06 | Added `weekly_tasks` table for recurring weekly task scheduling |

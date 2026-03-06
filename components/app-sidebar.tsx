@@ -17,7 +17,8 @@ import {
   LayoutDashboard, Sparkle, Inbox, Calendar, Settings2, LifeBuoy,
   MessageCircle, Trash2,
   Wallet,
-  Notebook
+  Notebook,
+  CalendarDays,
 } from "lucide-react"
 
 import { getProjects, type Project } from "@/lib/supabase/projects"
@@ -34,6 +35,7 @@ const data = {
     { title: "Ask AI", url: "/dashboard/ask-ai", icon: <Sparkle /> },
     { title: "Inbox", url: "/dashboard/inbox", icon: <Inbox /> },
     { title: "Notes", url: "/dashboard/notes", icon: <Notebook /> },
+    { title: "Weekly", url: "/dashboard/weekly", icon: <CalendarDays /> },
     { title: "Finance", url: "/dashboard/finance", icon: <Wallet /> },
   ],
   navSecondary: [
