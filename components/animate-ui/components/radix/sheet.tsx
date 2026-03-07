@@ -69,11 +69,11 @@ function SheetContent({
       <SheetOverlay />
       <SheetContentPrimitive
         className={cn(
-          'bg-card fixed z-50 flex flex-col m-2 p-2 rounded-lg gap-4 shadow-lg',
-          side === 'right' && 'h-[98%] w-[350px] border-l',
-          side === 'left' && 'h-[98%] w-[350px] border-r',
-          side === 'top' && 'w-full h-[350px] border-b',
-          side === 'bottom' && 'w-full h-[350px] border-t',
+          'bg-card fixed z-50 flex flex-col p-2 rounded-lg gap-4 shadow-lg',
+          side === 'right' && 'h-[98%] w-[350px] border-l m-2',
+          side === 'left' && 'h-[98%] w-[350px] border-r m-2',
+          side === 'top' && 'w-full h-[350px] border-b m-2',
+          side === 'bottom' && 'w-full h-auto border-t m-0',
           className,
         )}
         side={side}

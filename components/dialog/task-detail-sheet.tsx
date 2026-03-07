@@ -20,6 +20,7 @@ import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { useIsMobile } from '@/hooks/use-mobile'
 import {
     Clock, Star, MoreHorizontal,
     Zap, CalendarDays, Tag,
@@ -145,6 +146,7 @@ export default function TaskDetailSheet({
     onEdit,
     onUpdate,
 }: TaskDetailSheetProps) {
+    const isMobile = useIsMobile()
     const attachInputRef = useRef<HTMLInputElement>(null)
     const [activeTab, setActiveTab] = useState<'comments' | 'attachments'>('comments')
 
@@ -295,13 +297,25 @@ export default function TaskDetailSheet({
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent
-                side="right"
+                side={isMobile ? 'bottom' : 'right'}
                 showCloseButton={false}
-                className="w-[520px] !max-w-[520px] flex flex-col p-0 gap-0 overflow-hidden"
+                className={cn(
+                    'flex flex-col p-0 gap-0 overflow-hidden',
+                    isMobile
+                        ? 'rounded-t-2xl max-h-[95dvh] w-full'
+                        : 'w-[520px] !max-w-[520px]',
+                )}
             >
                 <SheetHeader className="sr-only">
                     <SheetTitle>Task Details</SheetTitle>
                 </SheetHeader>
+
+                {/* Mobile drag handle */}
+                {isMobile && (
+                    <div className="flex justify-center pt-2 pb-1 shrink-0">
+                        <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
+                    </div>
+                )}
 
                 {/* ── Top action bar ── */}
                 <div className="flex items-center justify-between px-2 pt-3 pb-2 shrink-0">

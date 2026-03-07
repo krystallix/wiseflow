@@ -30,6 +30,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { type TaskStatus, type TaskPriority } from '@/lib/dummy-data'
 import {
     createTask,
@@ -152,6 +153,7 @@ export default function CreateNewTask({
     onCreated,
     taskToEdit,
 }: CreateNewTaskProps) {
+    const isMobile = useIsMobile()
     const uid = useId()
     const subtaskInputRef = useRef<HTMLInputElement>(null)
     const coverInputRef = useRef<HTMLInputElement>(null)
@@ -303,9 +305,21 @@ export default function CreateNewTask({
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent
-                side="right"
-                className="w-[500px] !max-w-[500px] flex flex-col p-0 gap-0"
+                side={isMobile ? 'bottom' : 'right'}
+                className={cn(
+                    'flex flex-col p-0 gap-0',
+                    isMobile
+                        ? 'rounded-t-2xl max-h-[95dvh] w-full'
+                        : 'w-[500px] !max-w-[500px]',
+                )}
             >
+                {/* Mobile drag handle */}
+                {isMobile && (
+                    <div className="flex justify-center pt-2 pb-1 shrink-0">
+                        <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
+                    </div>
+                )}
+
                 {/* ── Header ── */}
                 <SheetHeader className="border-b px-6 py-4 shrink-0">
                     <SheetTitle className="text-base">{taskToEdit ? 'Edit Task' : 'Create New Task'}</SheetTitle>
