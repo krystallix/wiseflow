@@ -10,6 +10,7 @@ import { NavUser } from "@/components/nav-user"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/animate-ui/components/radix/popover"
 import { PinList, type PinListItem } from "@/components/animate-ui/components/community/pin-list"
 import { useAuth } from "@/components/providers/auth-provider"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
@@ -59,6 +60,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             )}
 
                         <div className="flex items-center justify-end gap-2 sm:gap-4">
+                            <ThemeToggle />
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button size="icon-lg" variant="outline" className="rounded-sm group bg-card text-primary cursor-pointer">

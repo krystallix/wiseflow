@@ -4,6 +4,7 @@ import "./globals.css";
 import { TooltipProvider } from "@/components/animate-ui/components/animate/tooltip"
 import { AuthProvider } from "@/components/providers/auth-provider"
 import { Toaster } from "@/components/ui/sonner"
+import { ThemeProvider } from "@/components/theme-provider"
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap', preload: false });
 
 const geistSans = Geist({
@@ -36,13 +37,20 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        <TooltipProvider>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
-          <Toaster position="top-right" />
-        </TooltipProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <TooltipProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+            <Toaster position="top-right" />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
-    </html>
+    </html >
   );
 }
