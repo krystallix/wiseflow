@@ -33,7 +33,6 @@ const data = {
   navMain: [
     { title: "Home", url: "/dashboard", icon: <LayoutDashboard /> },
     { title: "Ask AI", url: "/dashboard/ask-ai", icon: <Sparkle /> },
-    { title: "Inbox", url: "/dashboard/inbox", icon: <Inbox /> },
     { title: "Notes", url: "/dashboard/notes", icon: <Notebook /> },
     { title: "Weekly", url: "/dashboard/weekly", icon: <CalendarDays /> },
     { title: "Finance", url: "/dashboard/finance", icon: <Wallet /> },
