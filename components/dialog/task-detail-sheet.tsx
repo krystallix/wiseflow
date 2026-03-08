@@ -290,15 +290,22 @@ export default function TaskDetailSheet({
                     }
                 },
             },
-            actionButtonStyle: { backgroundColor: '#F85149', color: '#fff', fontWeight: '600' },
+            actionButtonStyle: { backgroundColor: '#F85149', color: '#fff', fontWeight: '600', pointerEvents: 'auto' },
         })
     }
-
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent
                 side={isMobile ? 'bottom' : 'right'}
                 showCloseButton={false}
+                onInteractOutside={(e) => {
+                    const target = e.target as HTMLElement
+                    // Prevent Radix from closing the Sheet (and swallowing the click)
+                    // if the user is interacting with the Sonner toaster
+                    if (target.closest('[data-sonner-toaster]') || target.closest('.toaster')) {
+                        e.preventDefault()
+                    }
+                }}
                 className={cn(
                     'flex flex-col p-0 gap-0 overflow-hidden',
                     isMobile
