@@ -15,6 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { SparklesIcon, BadgeCheckIcon, CreditCardIcon, BellIcon, LogOutIcon } from "lucide-react"
+import { useAuth } from "@/components/providers/auth-provider"
+import { useRouter } from "next/navigation"
 
 export function NavUser({
   user,
@@ -25,6 +27,13 @@ export function NavUser({
     avatar: string
   }
 }) {
+  const { signOut } = useAuth()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    await signOut()
+    router.push('/login')
+  }
 
   return (
     <DropdownMenu>
@@ -78,7 +87,7 @@ export function NavUser({
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive">
+        <DropdownMenuItem variant="destructive" onClick={handleLogout} className="cursor-pointer">
           <LogOutIcon
           />
           Log out
