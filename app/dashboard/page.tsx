@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import {
   Folder, Wallet, ArrowUpRight, ArrowDownLeft,
   CheckCircle2, Circle, Clock, Zap, Target,
-  TrendingUp, TrendingDown, Loader2,
+  TrendingUp, TrendingDown, Loader2, Sparkles,
   CalendarDays, ListChecks, Banknote,
   ArrowUp, ArrowRight, ArrowDown,
 } from 'lucide-react'
@@ -91,6 +91,8 @@ export default function DashboardPage() {
   const [wallets, setWallets] = useState<WalletType[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [savingGoals, setSavingGoals] = useState<SavingGoal[]>([])
+  const [aiInsight, setAiInsight] = useState<string | null>(null)
+  const [loadingAi, setLoadingAi] = useState(false)
 
   const fetchAll = useCallback(async () => {
     try {
@@ -119,10 +121,43 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
+  const generateAiInsight = useCallback(async (summary: FinanceSummary, recentTx: Transaction[]) => {
+    if (loadingAi || aiInsight || summary.monthIncome === 0 && summary.monthExpense === 0) return
+    setLoadingAi(true)
+    try {
+      const res = await fetch('/api/finance-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          summary: { monthNet: summary.monthNet },
+          monthIncome: summary.monthIncome,
+          monthExpense: summary.monthExpense,
+          recentTransactions: recentTx
+        })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAiInsight(data.summary)
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingAi(false)
+    }
+  }, [aiInsight, loadingAi])
+
+  const summary: FinanceSummary = useMemo(() => computeSummary(wallets, transactions), [wallets, transactions])
+  const recentTx = useMemo(() => transactions.slice(0, 5), [transactions])
+
+  useEffect(() => {
+    if (!loading && recentTx.length > 0 && summary) {
+      generateAiInsight(summary, recentTx)
+    }
+  }, [loading, recentTx, summary, generateAiInsight])
+
   if (loading) return <DashSkeleton />
 
   // ── Computed data ──
-  const summary: FinanceSummary = computeSummary(wallets, transactions)
 
   const today = new Date().getDay()
   const todayRoutines = weeklyTasks.filter(t => t.day_of_week === today)
@@ -139,8 +174,6 @@ export default function DashboardPage() {
     .filter(t => t.due_date && t.status !== 'done' && t.status !== 'cancel')
     .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())
     .slice(0, 5)
-
-  const recentTx = transactions.slice(0, 5)
 
   const recentProjects = [...projects]
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
@@ -172,6 +205,33 @@ export default function DashboardPage() {
 
       {/* ── Row 1: Stats Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* AI Insight */}
+        <div className="bg-card rounded-2xl p-4 sm:p-5 shadow-sm border border-border/30 bg-gradient-to-br from-indigo-50/50 to-white dark:from-indigo-950/20 dark:to-card relative overflow-hidden group">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 z-10">
+              <Sparkles className="size-3.5 fill-indigo-200" /> AI Insights
+            </span>
+          </div>
+          <div className="mt-1 flex-1 z-10 relative">
+            {loadingAi ? (
+              <div className="flex flex-col gap-1.5 animate-pulse">
+                <div className="h-3 bg-muted rounded w-full" />
+                <div className="h-3 bg-muted rounded w-3/4" />
+                <div className="h-3 bg-muted rounded w-5/6" />
+              </div>
+            ) : aiInsight ? (
+              <p className="text-sm font-medium text-foreground/80 leading-snug line-clamp-3">
+                {aiInsight}
+              </p>
+            ) : (
+              <p className="text-xs italic text-muted-foreground">Not enough data to analyze your habits.</p>
+            )}
+          </div>
+          <div className="absolute -right-4 -bottom-4 opacity-[0.03] dark:opacity-5 group-hover:scale-110 transition-transform duration-500">
+            <Sparkles className="size-24" />
+          </div>
+        </div>
+
         {/* Task Completion */}
         <div className="bg-card rounded-2xl p-4 sm:p-5 shadow-sm border border-border/30">
           <div className="flex items-center justify-between mb-3">
@@ -187,17 +247,7 @@ export default function DashboardPage() {
           <p className="text-2xs text-muted-foreground mt-1.5">{taskCompletionPct}% complete</p>
         </div>
 
-        {/* In Progress */}
-        <div className="bg-card rounded-2xl p-4 sm:p-5 shadow-sm border border-border/30">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-muted-foreground">In Progress</span>
-            <div className="p-1.5 bg-amber-500/10 rounded-lg text-amber-500">
-              <Clock className="size-3.5" />
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-foreground">{inProgressTasks}</div>
-          <p className="text-2xs text-muted-foreground mt-1.5">tasks being worked on</p>
-        </div>
+
 
         {/* Total Balance */}
         <div className="bg-card rounded-2xl p-4 sm:p-5 shadow-sm border border-border/30">
