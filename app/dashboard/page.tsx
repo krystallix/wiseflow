@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import {
   Folder, Wallet, ArrowUpRight, ArrowDownLeft,
@@ -93,6 +93,8 @@ export default function DashboardPage() {
   const [savingGoals, setSavingGoals] = useState<SavingGoal[]>([])
   const [aiInsight, setAiInsight] = useState<string | null>(null)
   const [loadingAi, setLoadingAi] = useState(false)
+  const [aiError, setAiError] = useState(false)
+  const hasFetchedAi = useRef(false)
 
   const fetchAll = useCallback(async () => {
     try {
@@ -121,26 +123,31 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  const generateAiInsight = useCallback(async (summary: FinanceSummary, recentTx: Transaction[]) => {
-    if (loadingAi || aiInsight || summary.monthIncome === 0 && summary.monthExpense === 0) return
+  const generateAiInsight = useCallback(async (summaryInfo: FinanceSummary, recentTransactions: Transaction[]) => {
+    if (loadingAi || aiInsight || (summaryInfo.monthIncome === 0 && summaryInfo.monthExpense === 0)) return
+
     setLoadingAi(true)
+    setAiError(false)
     try {
       const res = await fetch('/api/finance-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          summary: { monthNet: summary.monthNet },
-          monthIncome: summary.monthIncome,
-          monthExpense: summary.monthExpense,
-          recentTransactions: recentTx
+          summary: { monthNet: summaryInfo.monthNet },
+          monthIncome: summaryInfo.monthIncome,
+          monthExpense: summaryInfo.monthExpense,
+          recentTransactions
         })
       })
       if (res.ok) {
         const data = await res.json()
         setAiInsight(data.summary)
+      } else {
+        setAiError(true)
       }
     } catch (err) {
       console.error(err)
+      setAiError(true)
     } finally {
       setLoadingAi(false)
     }
@@ -150,7 +157,8 @@ export default function DashboardPage() {
   const recentTx = useMemo(() => transactions.slice(0, 5), [transactions])
 
   useEffect(() => {
-    if (!loading && recentTx.length > 0 && summary) {
+    if (!loading && recentTx.length > 0 && summary && !hasFetchedAi.current) {
+      hasFetchedAi.current = true
       generateAiInsight(summary, recentTx)
     }
   }, [loading, recentTx, summary, generateAiInsight])
@@ -223,6 +231,16 @@ export default function DashboardPage() {
               <p className="text-sm font-medium text-foreground/80 leading-snug line-clamp-3">
                 {aiInsight}
               </p>
+            ) : aiError ? (
+              <div className="flex flex-col items-start gap-1">
+                <p className="text-xs text-rose-500/80">Failed to analyze.</p>
+                <button
+                  onClick={() => generateAiInsight(summary, recentTx)}
+                  className="text-2xs font-semibold text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 capitalize underline underline-offset-2"
+                >
+                  Try Again
+                </button>
+              </div>
             ) : (
               <p className="text-xs italic text-muted-foreground">Not enough data to analyze your habits.</p>
             )}
