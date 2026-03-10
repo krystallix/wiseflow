@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DynamicIcon } from '@/lib/dynamic-icon'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/animate-ui/components/animate/tooltip'
 
 import { getProjects, type Project } from '@/lib/supabase/projects'
 import { getTasks, type Task } from '@/lib/supabase/tasks'
@@ -223,9 +224,18 @@ export default function DashboardPage() {
                 <div className="h-3 bg-muted rounded w-5/6" />
               </div>
             ) : aiInsight ? (
-              <p className="text-sm font-medium text-foreground/80 leading-snug line-clamp-3">
-                {aiInsight}
-              </p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="cursor-help">
+                    <p className="text-sm font-medium text-foreground/80 leading-snug line-clamp-3 text-left">
+                      {aiInsight}
+                    </p>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[260px] sm:max-w-xs p-3 shadow-xl border border-border/50 text-xs sm:text-sm text-foreground/90 font-medium leading-relaxed">
+                  {aiInsight}
+                </TooltipContent>
+              </Tooltip>
             ) : aiError ? (
               <div className="flex flex-col items-start gap-1">
                 <p className="text-xs text-rose-500/80">Failed to analyze.</p>
