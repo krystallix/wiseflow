@@ -31,16 +31,7 @@ function greetByTime(): string {
   return 'Good evening'
 }
 
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'Just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  return `${days}d ago`
-}
+
 
 function formatCurrency(n: number): string {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n)
@@ -90,6 +81,7 @@ export default function DashboardPage() {
   const [weeklyTasks, setWeeklyTasks] = useState<WeeklyTask[]>([])
   const [wallets, setWallets] = useState<WalletType[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [monthTransactions, setMonthTransactions] = useState<Transaction[]>([])
   const [savingGoals, setSavingGoals] = useState<SavingGoal[]>([])
   const [aiInsight, setAiInsight] = useState<string | null>(null)
   const [loadingAi, setLoadingAi] = useState(false)
@@ -98,18 +90,23 @@ export default function DashboardPage() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [p, wk, w, tx, sg] = await Promise.all([
+      const now = new Date()
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+
+      const [p, wk, w, tx, sg, monthTx] = await Promise.all([
         getProjects(),
         getWeeklyTasks(),
         getWallets(),
         getTransactions({ limit: 50 }),
         getSavingGoals(),
+        getTransactions({ from: startOfMonth, limit: 500 }),
       ])
       setProjects(p)
       setWeeklyTasks(wk)
       setWallets(w)
       setTransactions(tx)
       setSavingGoals(sg)
+      setMonthTransactions(monthTx)
 
       // Fetch tasks for all projects
       const taskArrays = await Promise.all(p.map(proj => getTasks(proj.id)))
@@ -133,8 +130,6 @@ export default function DashboardPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          summary: { monthNet: summaryInfo.monthNet },
-          monthIncome: summaryInfo.monthIncome,
           monthExpense: summaryInfo.monthExpense,
           recentTransactions
         })
@@ -157,11 +152,11 @@ export default function DashboardPage() {
   const recentTx = useMemo(() => transactions.slice(0, 5), [transactions])
 
   useEffect(() => {
-    if (!loading && recentTx.length > 0 && summary && !hasFetchedAi.current) {
+    if (!loading && monthTransactions.length > 0 && summary && !hasFetchedAi.current) {
       hasFetchedAi.current = true
-      generateAiInsight(summary, recentTx)
+      generateAiInsight(summary, monthTransactions)
     }
-  }, [loading, recentTx, summary, generateAiInsight])
+  }, [loading, monthTransactions, summary, generateAiInsight])
 
   if (loading) return <DashSkeleton />
 
@@ -235,7 +230,7 @@ export default function DashboardPage() {
               <div className="flex flex-col items-start gap-1">
                 <p className="text-xs text-rose-500/80">Failed to analyze.</p>
                 <button
-                  onClick={() => generateAiInsight(summary, recentTx)}
+                  onClick={() => generateAiInsight(summary, monthTransactions)}
                   className="text-2xs font-semibold text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 capitalize underline underline-offset-2"
                 >
                   Try Again
