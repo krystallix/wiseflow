@@ -232,7 +232,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-[260px] sm:max-w-xs p-3 shadow-xl border border-border/50 text-xs sm:text-sm text-foreground/90 font-medium leading-relaxed">
+                <TooltipContent className="max-w-[260px] sm:max-w-xs p-3 shadow-xl border border-border/50 text-xs sm:text-sm text-white font-medium leading-relaxed">
                   {aiInsight}
                 </TooltipContent>
               </Tooltip>
