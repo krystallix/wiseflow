@@ -49,6 +49,7 @@ export default function AskAIPage() {
         if (!userData?.user) return
 
         const { data } = await supabase
+            .schema('risenwise')
             .from('chat_sessions')
             .select('*')
             .eq('user_id', userData.user.id)
@@ -60,6 +61,7 @@ export default function AskAIPage() {
     const selectChat = async (id: string) => {
         setActiveSessionId(id)
         const { data } = await supabase
+            .schema('risenwise')
             .from('chat_messages')
             .select('*')
             .eq('session_id', id)
@@ -82,6 +84,7 @@ export default function AskAIPage() {
 
     const deleteChat = async (id: string) => {
         const { error } = await supabase
+            .schema('risenwise')
             .from('chat_sessions')
             .delete()
             .eq('id', id)
@@ -107,6 +110,7 @@ export default function AskAIPage() {
             if (!userData?.user) return
 
             const { data, error } = await supabase
+                .schema('risenwise')
                 .from('chat_sessions')
                 .insert({ title: newTitle, user_id: userData.user.id })
                 .select('id')

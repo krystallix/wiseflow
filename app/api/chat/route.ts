@@ -23,7 +23,7 @@ export async function POST(req: Request) {
         const lastMessage = messages[messages.length - 1];
         if (lastMessage.role === 'user') {
             const content = lastMessage.parts ? lastMessage.parts.map((p: any) => p.text || '').join('') : (lastMessage as any).text || '';
-            await supabase.from('chat_messages').insert([{
+            await supabase.schema('risenwise').from('chat_messages').insert([{
                 session_id: sessionId,
                 user_id: authUser.id,
                 role: 'user',
@@ -38,14 +38,14 @@ export async function POST(req: Request) {
         messages: await convertToModelMessages(messages),
         onFinish: async ({ text }) => {
             if (supabase && authUser && sessionId) {
-                await supabase.from('chat_messages').insert([{
+                await supabase.schema('risenwise').from('chat_messages').insert([{
                     session_id: sessionId,
                     user_id: authUser.id,
                     role: 'assistant',
                     content: text,
                     sort_order: messages.length + 1,
                 }])
-                await supabase.from('chat_sessions')
+                await supabase.schema('risenwise').from('chat_sessions')
                     .update({ updated_at: new Date().toISOString() })
                     .eq('id', sessionId);
             }

@@ -184,8 +184,6 @@ function TabsTrigger({
 type TabsContentsProps = HTMLMotionProps<'div'> & {
   children: React.ReactNode;
   transition?: Transition;
-  /** If true, disables height animation and lets layout control the height (use when inside flex/grid containers) */
-  fillHeight?: boolean;
 };
 
 function TabsContents({
@@ -197,8 +195,6 @@ function TabsContents({
     bounce: 0,
     restDelta: 0.01,
   },
-  fillHeight = false,
-  style,
   ...props
 }: TabsContentsProps) {
   const { activeValue } = useTabs();
@@ -243,7 +239,6 @@ function TabsContents({
   }, []);
 
   React.useEffect(() => {
-    if (fillHeight) return;
     if (roRef.current) {
       roRef.current.disconnect();
       roRef.current = null;
@@ -268,31 +263,26 @@ function TabsContents({
       ro.disconnect();
       roRef.current = null;
     };
-  }, [activeIndex, childrenArray.length, measure, fillHeight]);
+  }, [activeIndex, childrenArray.length, measure]);
 
   React.useLayoutEffect(() => {
-    if (fillHeight) return;
     if (height === 0 && activeIndex >= 0) {
       const next = measure(activeIndex);
       if (next !== 0) setHeight(next);
     }
-  }, [activeIndex, height, measure, fillHeight]);
+  }, [activeIndex, height, measure]);
 
   return (
     <motion.div
       ref={containerRef}
       data-slot="tabs-contents"
-      style={fillHeight
-        ? { overflow: 'visible', height: '100%', ...style }
-        : { overflow: 'clip', ...style }
-      }
-      animate={fillHeight ? undefined : { height }}
+      style={{ overflow: 'hidden' }}
+      animate={{ height }}
       transition={transition}
       {...props}
     >
       <motion.div
         className="flex -mx-2"
-        style={fillHeight ? { height: '100%' } : undefined}
         animate={{ x: activeIndex * -100 + '%' }}
         transition={transition}
       >
@@ -302,8 +292,7 @@ function TabsContents({
             ref={(el) => {
               itemRefs.current[index] = el;
             }}
-            className="w-full shrink-0 px-2"
-            style={fillHeight ? { height: '100%', overflow: 'hidden' } : { height: '100%' }}
+            className="w-full shrink-0 px-2 h-full"
           >
             {child}
           </div>
@@ -336,7 +325,7 @@ function TabsContent({
       role="tabpanel"
       data-slot="tabs-content"
       inert={!isActive}
-      style={{ ...style }}
+      style={{ overflow: 'hidden', ...style }}
       initial={{ filter: 'blur(0px)' }}
       animate={{ filter: isActive ? 'blur(0px)' : 'blur(4px)' }}
       exit={{ filter: 'blur(0px)' }}
